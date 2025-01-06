@@ -1,73 +1,55 @@
-{% extends "base.html" %}
-
+{% extends "base.html" %} 
 {% block content %}
 
 <div class="row">
-    <div class="col-xl-12">
-        <div class="card">
-            <div class="card-body">
-                <h2>Add Delivery</h2>
-                <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-                    <!-- Load message -->
-                    {% include 'alerts2.html' %}
-                </div>
-                <p class="card-subtitle mb-4">Use the form below to add a new delivery record.</p>
-
-                <form method="POST">
-                    {% csrf_token %}
-                    <div class="row">
-                        <!-- First Column -->
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="id_driver">Driver</label>
-                                <input type="text" id="id_driver" class="form-control" value="{{ driver.full_name }}" readonly>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="id_customer">Customer</label>
-                                {{ form.customer }}
-                            </div>
-
-                            <div class="form-group">
-                                <label for="id_quantity">Quantity (Number of jars)</label>
-                                {{ form.quantity }}
-                            </div>
-
-                            <div class="form-group">
-                                <label for="id_jar_type">Jar Type</label>
-                                {{ form.jar_type }}
-                            </div>
-                        </div>
-
-                        <!-- Second Column -->
-                        <div class="col-md-6">
-
-                            <div class="form-group">
-                                <label for="id_returned_count">Returned Count</label>
-                                {{ form.returned_count }}
-                            </div>
-
-                            <div class="form-group">
-                                <label for="id_leak_count">Leak Count</label>
-                                {{ form.leak_count }}
-                            </div>
-
-                            <div class="form-group">
-                                <label for="id_half_caps_count">Half Caps Count</label>
-                                {{ form.half_caps_count }}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-12 text-center">
-                            <button type="submit" class="btn btn-primary">Submit</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
+  <div class="col-xl-12">
+    <div class="card">
+      <div class="card-body">
+        <h2>Add Delivery</h2>
+        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+          <!-- Load message -->
+          {% include 'alerts2.html' %}
         </div>
+        <p class="card-subtitle mb-4">
+          Use the form below to add a new delivery record.
+        </p>
+
+        <form method="POST">
+        {% csrf_token %}
+        <h4>Delivery Details</h4>
+        {{ delivery_form.as_p }}
+        <h4>Customer Deliveries</h4>
+        {{ customer_formset.management_form }}
+        {% for form in customer_formset %}
+            <div class="form-row">
+                <div class="col-md-6">
+                    {{ form.existing_customer.label_tag }}
+                    {{ form.existing_customer }}
+                </div>
+                <div class="col-md-6">
+                    {{ form.new_customer_name.label_tag }}
+                    {{ form.new_customer_name }}
+                </div>
+                <div class="col-md-6">
+                    {{ form.new_customer_contact.label_tag }}
+                    {{ form.new_customer_contact }}
+                </div>
+                <div class="col-md-6">
+                    {{ form.quantity.label_tag }}
+                    {{ form.quantity }}
+                </div>
+                <div class="col-md-6">
+                    {{ form.price_per_jar.label_tag }}
+                    {{ form.price_per_jar }}
+                </div>
+            </div>
+            <hr>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+      </div>
     </div>
+  </div>
 </div>
 
 {% endblock content %}
