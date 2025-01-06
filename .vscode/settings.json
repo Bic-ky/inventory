@@ -1,0 +1,20 @@
+{
+  "python.terminal.activateEnvironment": true,
+  "python.defaultInterpreterPath": "~/env/Scripts/python",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true
+  },
+  "[html]": {
+    "editor.defaultFormatter": null,
+    "editor.formatOnSave": false
+  },
+  "emmet.includeLanguages": {
+    "django-html": "html"
+  },
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[django-html]": {
+    "editor.defaultFormatter": null,
+    "editor.formatOnSave": false
+  }
+}
