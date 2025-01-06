@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-box d-flex align-items-center justify-content-between">
+            <h4 class="mb-0 font-size-18 text-primary">Bill Detail</h4>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                
+                <!-- Customer Information -->
+                <div class="clearfix mb-4 p-3 bg-light border rounded">
+                    <div class="float-left">
+                        <h6 class="font-weight-bold text-primary">Customer Information</h6>
+                        <address class="text-secondary">
+                            <strong class="text-dark">{{ customer.name }}</strong><br>
+                            {{ customer.address }}<br>
+                            <span class="font-weight-bold">Contact:</span> {{ customer.contact_number }}
+                        </address>
+                    </div>
+                    <div class="float-right">
+                        <h4 class="m-0 d-print-none text-danger">Invoice</h4>
+                    </div>
+                </div>
+
+                <!-- Delivery Details -->
+                <div class="row mt-4">
+                    <div class="col-6">
+                        <p><strong class="text-primary">Delivery Date:</strong> <span class="text-secondary">{{ delivery.date }}</span></p>
+                        <p><strong class="text-primary">Status:</strong> <span class="badge badge-info">{{ delivery.get_status_display }}</span></p>
+                        <p><strong class="text-primary">Driver:</strong> <span class="text-secondary">{{ driver.user.full_name }}</span></p>
+                    </div>
+                </div>
+
+                <!-- Delivery and Billing Information Table -->
+                <div class="table-responsive">
+                    <table class="table mt-4 table-bordered">
+                        <thead >
+                            <tr>
+                                <th>Quantity</th>
+                                <th>Jar Type</th>
+                                <th>Sold New Jars</th>
+                                <th>Total Cost (Rs)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="text-center">
+                                <td>{{ delivery.quantity }}</td>
+                                <td>{{ delivery.get_jar_type_display }}</td>
+                                <td>{{ delivery.sold_new_jars }}</td>
+                                <td class="font-weight-bold text-success">Rs. {{ bill_total }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Print Button -->
+                <div class="d-print-none my-4">
+                    <div class="text-right">
+                        <a href="javascript:window.print()" class="btn btn-primary waves-effect waves-light">
+                            <i class="fa fa-print mr-2"></i> Print
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div> <!-- end card -->
+    </div> <!-- end col -->
+</div>
+{% endblock %}

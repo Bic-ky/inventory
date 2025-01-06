@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h1>All Bills</h1>
+  
+  <a href="{% url 'bill_create' %}" class="btn btn-success mb-3">Add New Bill</a>
+
+  <table id="basic-datatable" class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>Name of Customer</th>
+        <th>Driver</th>
+        <th>Jars</th>
+        <th>Qty</th>
+        <th>Received Amount</th>
+        <th>Due Remain</th>
+        <th>Remarks</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for bill in bills %}
+      <tr>
+        <!-- 1) Name of Customer (from Bill.delivery.customer or from Bill.delivery -> customer) -->
+        <td>
+          {% if bill.delivery and bill.delivery.customer %}
+            {{ bill.delivery.customer.name }}
+          {% else %}
+            ---
+          {% endif %}
+        </td>
+
+        <!-- 2) Driver (from Bill.delivery.driver) -->
+        <td>
+          {% if bill.delivery and bill.delivery.driver %}
+            {{ bill.delivery.driver }}
+          {% else %}
+            ---
+          {% endif %}
+        </td>
+
+        <!-- 3) Jars (bill.delivery.jar_type) -->
+        <td>
+          {% if bill.delivery %}
+            {% if bill.delivery.jar_type == 'N' %}
+              Normal
+            {% elif bill.delivery.jar_type == 'P' %}
+              Premium
+            {% else %}
+              ---
+            {% endif %}
+          {% else %}
+            ---
+          {% endif %}
+        </td>
+
+        <!-- 4) Qty (bill.delivery.quantity) -->
+        <td>
+          {% if bill.delivery %}
+            {{ bill.delivery.quantity }}
+          {% else %}
+            ---
+          {% endif %}
+        </td>
+
+        <!-- 5) Received Amount (bill.amount_received_by_driver) -->
+        <td>{{ bill.amount_received_by_driver }}</td>
+
+        <!-- 6) Due Remain (bill.due_amount) -->
+        <td>{{ bill.due_amount }}</td>
+
+        <!-- 7) Remarks (bill.notes) -->
+        <td>{{ bill.notes|default_if_none:"---" }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7">No Bills Found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock content %}

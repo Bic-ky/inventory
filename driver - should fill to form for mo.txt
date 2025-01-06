@@ -1,0 +1,9 @@
+driver - should fill to form for monthly customers  (also check if credit is needed)
+remarks field in delivery for driver and staff
+
+
+driver , jar in  , jar out in staff
+
+Jar left (not usable jars and remarks why not usable)
+
+

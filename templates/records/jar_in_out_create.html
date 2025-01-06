@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="card mt-3">
+  <div class="card-body">
+    <h2>Create Jar In/Out Record</h2>
+    <form method="POST" action="{% url 'jar_in_out_create' %}">
+      {% csrf_token %}
+      <div class="row">
+        {% for field in form %}
+          <div class="col-lg-6 mb-3">
+            <div class="form-group">
+              {{ field.label_tag }}
+              {{ field }}
+              {% if field.errors %}
+                <div class="text-danger">
+                  {{ field.errors }}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+        <!-- Add a hidden field for vehicle_number -->
+        <input type="hidden" id="id_vehicle_number" name="vehicle_number" />
+      </div>
+      <button type="submit" class="btn btn-primary">Save</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const fillerField = document.getElementById('id_fillers');
+    const vehicleField = document.getElementById('id_vehicle_number');
+
+    fillerField.addEventListener('change', function () {
+      const fillerId = this.value;
+
+      if (fillerId) {
+        // Fetch vehicle number from the server
+        fetch(`/get-filler-vehicle/${fillerId}/`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.vehicle_number) {
+              vehicleField.value = data.vehicle_number; // Populate hidden field
+            }
+          })
+          .catch(error => console.error('Error fetching vehicle number:', error));
+      } else {
+        vehicleField.value = '';
+      }
+    });
+  });
+</script>
+
+{% endblock content %}

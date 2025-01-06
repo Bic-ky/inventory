@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>Delivery</h2>
+
+                    <!-- Date filter aligned to the right -->
+                    <form method="GET" id="date-filter-form" class="form-inline">
+                        <label for="filter-date" class="mr-2 font-weight-bold">Select Date:</label>
+                        <input type="date" id="filter-date" name="date" class="form-control mr-2" max="{{ today|date:'Y-m-d' }}" value="{{ filter_date|date:'Y-m-d' }}">
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                    </form>
+                </div>
+
+                <!-- Display the table -->
+                <table id="basic-datatable" class="table table-striped dt-responsive nowrap">
+                    <thead>
+                        <tr>
+                            <th>Customer Name</th>
+                            <th>Driver</th>
+                            <th>Quantity</th>
+                            <th>Jar Type</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for delivery in deliveries %}
+                        <tr>
+                            <td>{{ delivery.customer.name }}</td>
+                            <td>{{ delivery.driver.full_name }}</td>
+                            <td>{{ delivery.quantity }}</td>
+
+                            <td>
+                                {% if delivery.jar_type == 'N' %}
+                                    <span class="badge badge-primary">Normal</span>
+                                {% elif delivery.jar_type == 'P' %}
+                                    <span class="badge badge-warning">Premium</span>
+                                {% endif %}
+                            </td>
+
+                            <td>{{ delivery.date }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <!-- Display totals in bold -->
+                <div class="totals mt-4">
+                    <p><strong>Total Jars Delivered Today: </strong>{{ total_jars }}</p>
+                    <p><strong>Total Leak Jars: </strong>{{ total_leaks }}</p>
+                    <p><strong>Total Half Caps: </strong>{{ total_half_caps }}</p>
+                    <p><strong>Total Jars Returned: </strong>{{ total_returned }}</p>
+                </div>
+            </div> <!-- end card body-->
+        </div> <!-- end card -->
+    </div><!-- end col-->
+</div>
+<!-- end row-->
+
+<!-- DataTables JS for adding print and excel functionality -->
+<script>
+    $(document).ready(function () {
+        $('#basic-datatable').DataTable({
+            responsive: true,
+            dom: 'Bfrtip',
+            buttons: [
+                {
+                    extend: 'print',
+                    text: 'Print',
+                    customize: function (win) {
+                        // Append the totals section to the print window
+                        $(win.document.body).append(
+                            '<div class="totals">' +
+                                '<p><strong>Total Jars Delivered Today: </strong>' + '{{ total_jars }}' + '</p>' +
+                                '<p><strong>Total Leak Jars: </strong>' + '{{ total_leaks }}' + '</p>' +
+                                '<p><strong>Total Half Caps: </strong>' + '{{ total_half_caps }}' + '</p>' +
+                                '<p><strong>Total Jars Returned: </strong>' + '{{ total_returned }}' + '</p>' +
+                            '</div>'
+                        );
+                    }
+                },
+                'excel'   // Excel download button
+            ]
+        });
+    });
+</script>
+
+{% endblock content %}

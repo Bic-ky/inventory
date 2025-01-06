@@ -1,0 +1,163 @@
+<!-- templates/records/jar_cap_list.html -->
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<div class="container mt-4">
+    <h1>Jar Cap Inventory</h1>
+
+    <!-- Display Inventory Status -->
+    <div class="alert {% if is_low_stock %}alert-danger{% else %}alert-success{% endif %}">
+        <strong>Total Jar Caps (Boras):</strong> {{ total_inventory }}
+        {% if is_low_stock %}
+            <br/><strong>Warning:</strong> LOW STOCK!
+        {% else %}
+            <br/><strong>Status:</strong> OK
+        {% endif %}
+    </div>
+
+    <!-- Display Last Updated and Usage Date -->
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Quantity (Boras)</th>
+                <th>Last Updated</th>
+                <th>Usage Date</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ jarcap.quantity_in_bora }}</td>
+                <td>{{ jarcap.last_updated }}</td>
+                <td>
+                    {% if jarcap.usage_date %}
+                        {{ jarcap.usage_date }}
+                    {% else %}
+                        ---
+                    {% endif %}
+                </td>
+                <td>
+                    {% if is_low_stock %}
+                        <span style="color: red; font-weight: bold;">LOW STOCK</span>
+                    {% else %}
+                        OK
+                    {% endif %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Forms Section -->
+    <div class="row">
+        <!-- Add Jar Caps Form -->
+        <div class="col-md-6">
+            <h2>Add Jar Caps</h2>
+            <form method="POST">
+                {% csrf_token %}
+                {{ inc_form.as_p }}
+                <button type="submit" name="increase" class="btn btn-primary">Add</button>
+            </form>
+        </div>
+
+        <!-- Use Jar Caps Form -->
+        <div class="col-md-6">
+            <h2>Use Jar Caps</h2>
+            <form method="POST">
+                {% csrf_token %}
+                {{ dec_form.as_p }}
+                <button type="submit" name="decrease" class="btn btn-danger">Use</button>
+            </form>
+        </div>
+    </div>
+
+    <hr/>
+
+    <!-- Add Monthly Expense Form -->
+    <div class="mt-4">
+        <h2>Add Monthly Expense</h2>
+        <form method="POST">
+            {% csrf_token %}
+            {{ expense_form.as_p }}
+            <button type="submit" name="add_expense" class="btn btn-success">Record Expense</button>
+        </form>
+    </div>
+
+    <!-- Display Monthly Expenses -->
+    <div class="mt-5">
+        <h2>Monthly Expenses</h2>
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Expense Type</th>
+                    <th>Amount</th>
+                    <th>Remarks</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for expense in jarcap.monthlyexpense_set.all %}
+                <tr>
+                    <td>{{ expense.date }}</td>
+                    <td>{{ expense.get_expense_type_display }}</td>
+                    <td>{{ expense.amount }}</td>
+                    <td>{{ expense.remarks|default:"-" }}</td>
+                    <td>
+                        {% if expense.expense_type == 'VENDOR' %}
+                            <strong>Vendor:</strong> {{ expense.vendor.name }}<br/>
+                            <strong>Product:</strong> {{ expense.product.name }}<br/>
+                            <strong>Invoice #:</strong> {{ expense.vendor_invoice_number }}<br/>
+                            <strong>Usage Date:</strong> {{ expense.usage_date }}
+                        {% elif expense.expense_type == 'SALARY' %}
+                            <strong>User:</strong> {{ expense.user.username }}
+                        {% elif expense.expense_type == 'MISCELLANEOUS' %}
+                            <strong>Details:</strong> {{ expense.miscellaneous_details }}
+                        {% else %}
+                            ---
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5">No Expenses Recorded.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- JavaScript for Dynamic Form Fields -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const expenseTypeSelect = document.querySelector('#id_expense_type');
+        const vendorFields = document.querySelectorAll('.vendor-field');
+        const salaryFields = document.querySelectorAll('.salary-field');
+        const miscellaneousFields = document.querySelectorAll('.misc-field');
+
+        function toggleFields() {
+            const selected = expenseTypeSelect.value;
+
+            // Hide all fields initially
+            vendorFields.forEach(field => field.style.display = 'none');
+            salaryFields.forEach(field => field.style.display = 'none');
+            miscellaneousFields.forEach(field => field.style.display = 'none');
+
+            // Show relevant fields based on selection
+            if (selected === '{{ MonthlyExpense.VENDOR }}') {
+                vendorFields.forEach(field => field.style.display = 'block');
+            } else if (selected === '{{ MonthlyExpense.SALARY }}') {
+                salaryFields.forEach(field => field.style.display = 'block');
+            } else if (selected === '{{ MonthlyExpense.MISCELLANEOUS }}') {
+                miscellaneousFields.forEach(field => field.style.display = 'block');
+            }
+        }
+
+        // Initialize fields on page load
+        toggleFields();
+
+        // Add event listener for changes
+        expenseTypeSelect.addEventListener('change', toggleFields);
+    });
+</script>
+{% endblock content %}

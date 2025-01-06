@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h2>Drivers Delivery - {{ filter_date }}</h2>
+
+                <!-- Date Filter Form -->
+                <form method="GET" class="form-inline">
+                    <label for="filter-date" class="mr-2 font-weight-bold">Select Date:</label>
+                    <input 
+                        type="date"
+                        id="filter-date"
+                        name="date"
+                        class="form-control mr-2"
+                        max="{{ today|date:'Y-m-d' }}"
+                        value="{{ filter_date|date:'Y-m-d' }}"
+                    >
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                </form>
+                
+                <hr />
+
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th>Driver Name</th>
+                            <th>Total Jars</th>
+                            <th>Total Leaks</th>
+                            <th>Half Caps</th>
+                            <th>Returned Jars</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for driver in driver_list %}
+                        <tr>
+                            <td>{{ driver.name }}</td>
+                            <td>{{ driver.total_jars }}</td>
+                            <td>{{ driver.total_leaks }}</td>
+                            <td>{{ driver.total_half_caps }}</td>
+                            <td>{{ driver.total_returns }}</td>
+                            <td>
+                                <button class="btn btn-info btn-sm" onclick="toggleSubTable('{{ forloop.counter0 }}')">
+                                    Show Deliveries
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- Sub-table for each driver's deliveries -->
+                        <tr id="sub-table-{{ forloop.counter0 }}" style="display:none;">
+                            <td colspan="6">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Customer</th>
+                                            <th>Quantity</th>
+                                            <th>Leak Jars</th>
+                                            <th>Half Caps</th>
+                                            <th>Returned</th>
+                                            <th>Jar Type</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for delivery in driver.deliveries %}
+                                        <tr>
+                                            <td>{{ delivery.customer.name }}</td>
+                                            <td>{{ delivery.quantity }}</td>
+                                            <td>{{ delivery.leak_count }}</td>
+                                            <td>{{ delivery.half_caps_count }}</td>
+                                            <td>{{ delivery.returned_count }}</td>
+                                            <td>
+                                                {% if delivery.jar_type == 'N' %}
+                                                    <span class="badge badge-primary">Normal</span>
+                                                {% elif delivery.jar_type == 'P' %}
+                                                    <span class="badge badge-warning">Premium</span>
+                                                {% else %}
+                                                    <span class="badge badge-secondary">Unknown</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6">No deliveries found for this driver.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleSubTable(index) {
+    const row = document.getElementById("sub-table-" + index);
+    row.style.display = (row.style.display === "none") ? "table-row" : "none";
+}
+</script>
+{% endblock content %}

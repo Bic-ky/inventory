@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+        <!-- Load message -->
+        {% include 'alerts2.html' %}
+    </div>
+    <h2>Send Monthly Summary</h2>
+    <form method="POST">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="email">Recipient Email:</label>
+            <input type="email" name="email" id="email" class="form-control" placeholder="Enter recipient email" required>
+        </div>
+        <div class="form-group">
+            <label for="month">Select Month:</label>
+            <input type="month" name="month" id="month" class="form-control" max="{{ today|date:'Y-m' }}" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Send Summary</button>
+    </form>
+</div>
+{% endblock %}

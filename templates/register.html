@@ -1,0 +1,119 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title> Sarvashree</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta content="Connecting Farmers and Agri-Experts " name="description" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <link rel="shortcut icon" href="{% static "img/logo.png" %}">
+
+    <!-- App css -->
+    <link href="{% static "assets/css/bootstrap.min.css" %}" rel="stylesheet" type="text/css" />
+    <link href="{% static "assets/css/icons.min.css" %}" rel="stylesheet" type="text/css" />
+    <link href="{% static "assets/css/theme.css" %}" rel="stylesheet" type="text/css" />
+    <link href="{% static "assets/css/icons.css" %}" rel="stylesheet" type="text/css" />
+    <link href="{% static "assets/css/theme.min.css" %}" rel="stylesheet" type="text/css" />
+    <script src="{% static "assets/js/location_picker.js" %}"></script>
+
+
+</head>
+
+<body>
+ 
+    <div>
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-12 col-md-8 col-lg-6">
+                    <div class="d-flex justify-content-center align-items-center min-vh-100">
+                        <div class="w-100 d-block bg-white shadow-lg rounded p-4">
+                            <div class="row">
+                                <div class="col-lg-12 align-items-center">
+
+                                        <div class="text-center ">
+                                            <a href="index.html" class="text-dark font-size-22 font-family-secondary">
+                                                <img src="{% static 'img/logo2.png' %}" height="200">
+                                            </a>
+                                        </div>
+                                        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+                                            <!-- Load message -->
+                                            {% include 'alerts2.html' %}
+                                        </div>
+                                        <h3 class="text-center">SIGN UP</h3>
+                                        <br>
+                                        <form class="user" action="{% url 'register' %}" method="post">
+                                            {% csrf_token %}
+                                            <div class="form-group row">
+                                                <div class="col-sm-6 mb-3 mb-sm-0">
+                                                    <label for="{{ form.full_name.id_for_label }}">Full Name:</label>
+                                                    {{ form.full_name }}
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <label for="{{ form.password.id_for_label }}">Password:</label>
+                                                    {{ form.password }}
+                                                </div>
+                                            </div>
+    
+                                            <div class="form-group row">
+                                                <div class="col-sm-6">
+                                                    <label for="{{ form.phone_number.id_for_label }}">Phone Number:</label>
+                                                    {{ form.phone_number }}
+                                                </div>
+                                                <div class="col-sm-6">
+                                                    <label for="{{ form.role.id_for_label }}">Role:</label>
+                                                    {{ form.role }}
+                                                </div>
+                                            </div>
+    
+                                            <div class="form-group row">
+                                                <div class="col-lg-12 mb-3 mb-sm-0">
+                                                    <label for="{{ form.address.id_for_label }}">Address:</label>
+                                                    {{ form.address }}
+                                                </div>
+                                            </div>
+    
+                                            <div class="form-group row">
+                                                <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
+                                                    <label for="{{ form.country.id_for_label }}">Country:</label>
+                                                    {{ form.country }}
+                                                </div>
+                                                <div class="col-lg-6 col-md-6 col-sm-12 col-xs-12">
+                                                    <label for="{{ form.city.id_for_label }}">City:</label>
+                                                    {{ form.city }}
+                                                </div>
+                                            </div>
+    
+                                            <button type="submit" class="btn btn-success btn-block waves-effect waves-light">Register Account</button>
+                                        </form>
+    
+                                        <div class="row mt-4">
+                                            <div class="col-12 text-center">
+                                                <p class="text-muted mb-0">Already have an account? <a href="{% url 'login' %}" class="text-muted font-weight-medium ml-1"><b>Sign In</b></a></p>
+                                            </div>
+                                        </div>
+                                </div> <!-- col-lg-12 -->
+                            </div> <!-- row -->
+                        </div> <!-- bg-white shadow-lg rounded my-5 p-4 -->
+                    </div> <!-- d-flex justify-content-center align-items-center min-vh-100 -->
+                </div> <!-- col-12 col-md-8 col-lg-6 -->
+            </div> <!-- row justify-content-center -->
+        </div> <!-- container -->
+    </div>
+    
+
+    <!-- jQuery  -->
+    <script src="{% static "assets/js/jquery.min.js" %}"></script>
+    <script src="{% static "assets/js/bootstrap.bundle.min.js" %}"></script>
+    <script src="{% static "assets/js/metismenu.min.js" %}"></script>
+    <script src="{% static "assets/js/waves.js" %}"></script>
+    <script src="{% static "assets/js/simplebar.min.js" %}"></script>
+
+    <!-- App js -->
+    <script src="{% static "assets/js/theme.js" %}"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title">All Deliveries</h4>
+                <p class="card-subtitle mb-4">
+                    Below is a list of all deliveries.
+                </p>
+
+                <table id="basic-datatable" class="table dt-responsive nowrap">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Customer</th>
+                            <th>Driver</th>
+                            <th>Quantity</th>
+                            <th>Jar Type</th>
+                            <th>Sold New Jars</th>
+                            <th>Total Cost (Rs)</th>
+                            <th>Bill</th>
+                        </tr>
+                    </thead>
+                
+                    <tbody>
+                        {% for delivery in deliveries %}
+                            <tr>
+                                <td>{{ delivery.date }}</td>
+                                <td>{{ delivery.customer.name }}</td>
+                                <td>{{ delivery.driver.full_name }}</td> <!-- Assuming driver is a User instance -->
+                                <td>{{ delivery.quantity }}</td>
+                                <td>{{ delivery.get_jar_type_display }}</td>
+                                <td>{{ delivery.sold_new_jars }}</td>
+                                <td>{{ delivery.calculate_bill }}</td>
+                                <td>
+                                    <a href="{% url 'bill_detail' delivery.id %}">
+                                        <span class="badge badge-primary">Bill</span>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+            </div> <!-- end card body-->
+        </div> <!-- end card -->
+    </div><!-- end col-->
+</div>
+<!-- end row-->
+
+<script>
+    $(document).ready(function () {
+        $('#basic-datatable').DataTable({
+            responsive: true,
+            dom: 'Bfrtip',
+            buttons: [
+                'copy', 'csv', 'excel', 'pdf', 'print'
+            ]
+        });
+    });
+</script>
+{% endblock content %}

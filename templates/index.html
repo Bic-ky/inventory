@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block content %}
+
+
+
+        
+<script>
+    {% if messages %}
+        {% for message in messages %}
+            Swal.fire({
+                icon: "{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% elif message.tags == 'warning' %}warning{% endif %}",
+                title: "{{ message }}",
+                showConfirmButton: false,
+                timer: 3000
+            });
+        {% endfor %}
+    {% endif %}
+</script>
+{% endblock content %}

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+            {% include 'alerts2.html' %}
+        </div>
+        <div class="col-12">
+            <h4>Monthly Expenses for {{ month }}/{{ year }}</h4>
+            <a href="{% url 'add_expense' %}" class="btn btn-success mt-2 mb-3">Add Expenses</a>
+
+            <table  id="basic-datatable" class="table table-striped dt-responsive nowrap">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Expense Type</th>
+                        <th>Vendor</th>
+                        <th>Product</th>
+                        <th>Amount</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody >
+                    {% for expense in expenses %}
+                        <tr>
+                            <td class="text-primary"><b>{{ expense.date }}</b></td>
+                            <td>{{ expense.get_expense_type_display }}</td>
+                            <td class="text-primary"><b>{% if expense.vendor %}{{ expense.vendor.name }}{% else %}N/A{% endif %}</b></td>
+                            <td>{% if expense.product %}{{ expense.product.name }}{% else %}N/A{% endif %}</td>
+                            <td>{{ expense.amount }}</td>
+                            {% if expense.remarks %}
+                            <td>{{ expense.remarks }}</td>
+                            {% else %}
+                            <td> No remarks</td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <h5>Total Expenses: {{ total_expenses }}</h5>
+
+        </div>
+    </div>
+
+
+    <script>
+        $(document).ready(function () {
+            $('#basic-datatable').DataTable({
+                responsive: true,
+                dom: 'Bfrtip',
+                buttons: [
+                    {
+                        extend: 'print',
+                        text: 'Print',
+                    },
+                    'excel' // Add Excel download button
+                ]
+            });
+        });
+    </script>
+{% endblock %}

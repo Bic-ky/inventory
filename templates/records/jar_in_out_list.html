@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2 class="mt-3">Jar In/Out Records</h2>
+<a href="{% url 'jar_in_out_create' %}" class="btn btn-success mb-3">New Record</a>
+
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Date/Time</th>
+            <th>Jars In</th>
+            <th>Jars Out</th>
+            <th>Notes</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for record in records %}
+        <tr>
+            <td><b>{{ record.created_at|date:"Y-m-d" }}</b></td>
+            <td>{{ record.jar_in }}</td>
+            <td>{{ record.jar_out }}</td>
+            <td>{{ record.notes }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4">No records found.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock content %}

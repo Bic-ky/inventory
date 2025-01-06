@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Monthly Summary</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 30px;
+            color: #333;
+            line-height: 1.6;
+        }
+        h2, p {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        h2 {
+            font-size: 24px;
+            color: #444;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table th, table td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        table th {
+            background-color: #f4f4f4;
+            color: #333;
+            font-weight: bold;
+        }
+        table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        table tr:hover {
+            background-color: #f1f1f1;
+        }
+        .footer {
+            margin-top: 20px;
+            text-align: right;
+            font-size: 14px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <h2>Monthly Summary for {{ filter_month }}</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Driver Name</th>
+                <th>Total Jars</th>
+                <th>Total Amount </th>
+                <th>Amount Received </th>
+                <th>Due Amount </th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in summary_data %}
+            <tr>
+                <td>{{ row.name }}</td>
+                <td>{{ row.total_jars }}</td>
+                <td>{{ row.total_amount }}</td>
+                <td>{{ row.amount_received }}</td>
+                <td>{{ row.due_amount }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="footer">
+        <p><strong>Total Jars Delivered:</strong> {{ total_jars }}</p>
+        <p><strong>Total Amount Received:</strong> {{ total_received }}</p>
+        <p><strong>Total Due Amount:</strong> {{ total_due }}</p>
+    </div>
+</body>
+</html>

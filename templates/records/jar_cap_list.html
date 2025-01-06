@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h1>Jar Cap Inventory</h1>
+
+    <!-- Single row table -->
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Quantity (Boras)</th>
+                <th>Last Updated</th>
+                <th>Last Usage Date</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ jarcap.quantity_in_bora }}</td>
+                <td>
+                    {% if jarcap.last_updated %}
+                        {{ jarcap.last_updated }}
+                    {% else %}
+                        ---
+                    {% endif %}
+                </td>
+                <td>
+                    {% if jarcap.usage_date %}
+                        {{ jarcap.usage_date }}
+                    {% else %}
+                        ---
+                    {% endif %}
+                </td>
+                <td>
+                    {% if jarcap.is_low_stock %}
+                        <span style="color: red; font-weight: bold;">LOW STOCK</span>
+                    {% else %}
+                        OK
+                    {% endif %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <hr/>
+
+    <!-- Form #1: Add Jar Caps -->
+    <h2>Add Jar Caps</h2>
+    <form method="POST" class="form-inline">
+        {% csrf_token %}
+        {{ inc_form.as_p }}
+        <button type="submit" name="increase" class="btn btn-primary ml-2">Add</button>
+    </form>
+
+    <hr/>
+
+    <!-- Form #2: Use Jar Caps -->
+    <h2>Use Jar Caps</h2>
+    <form method="POST" class="form-inline">
+        {% csrf_token %}
+        {{ dec_form.as_p }}
+        <button type="submit" name="decrease" class="btn btn-danger ml-2">Use</button>
+    </form>
+</div>
+{% endblock content %}

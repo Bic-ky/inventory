@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <!-- Page title -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>Monthly Summary</h2>
+
+                    <!-- Date filter aligned to the right -->
+                    <form method="GET" id="date-filter-form" class="form-inline">
+                        <label for="filter-date" class="mr-2 font-weight-bold">Select Month:</label>
+                        <input type="month" id="filter-date" name="month" class="form-control mr-2" 
+                               max="{{ today|date:'Y-m' }}" value="{{ filter_month|date:'Y-m' }}">
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                    </form>
+                </div>
+
+                <!-- Table with drivers' summary -->
+                <table id="basic-datatable" class="table table-striped dt-responsive nowrap">
+                    <thead>
+                        <tr>
+                            <th>Driver Name</th>
+                            <th>Total Jars</th>
+                            <th>Total Amount</th>
+                            <th>Amount Received</th>
+                            <th>Due Amount</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for data in summary_data %}
+                        <tr>
+                            <td>{{ data.name }}</td>
+                            <td>{{ data.total_jars }}</td>
+                            <td>{{ data.total_amount }}</td>
+                            <td>{{ data.amount_received }}</td>
+                            <td class="{% if data.due_amount > 0 %}text-danger{% else %}text-success{% endif %}">
+                                {{ data.due_amount }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div> <!-- end card body -->
+        </div> <!-- end card -->
+    </div><!-- end col -->
+</div>
+<!-- end row -->
+
+<!-- DataTables JS for adding print and Excel functionality -->
+<script>
+    $(document).ready(function () {
+        $('#basic-datatable').DataTable({
+            responsive: true,
+            dom: 'Bfrtip',
+            buttons: [
+                {
+                    extend: 'print',
+                    text: 'Print',
+                    customize: function (win) {
+                        $(win.document.body).append(
+                            '<div class="totals mt-4">' +
+                                '<p><strong>Total Jars Delivered: </strong>{{ total_jars }}</p>' +
+                                '<p><strong>Total Amount Received: </strong>{{ total_received }}</p>' +
+                                '<p><strong>Total Due Amount: </strong>{{ total_due }}</p>' +
+                            '</div>'
+                        );
+                    }
+                },
+                'excel' // Add Excel download button
+            ]
+        });
+    });
+</script>
+{% endblock content %}

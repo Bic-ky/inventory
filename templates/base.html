@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+
+    <head>
+        <meta charset="utf-8" />
+        <title> Sarvashree </title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <meta content="Sarvashree Aqua Industries" name="description" />
+
+        <link rel="shortcut icon" href="{% static "img/logo.png" %}">
+        <!--calendar css-->
+        <link href="{% static "assets/css/fullcalendar.min.css" %}" rel="stylesheet" />
+        <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap4.min.css" rel="stylesheet">
+
+        <!-- App css -->
+        <link href="{% static "assets/css/bootstrap.min.css" %}" rel="stylesheet" type="text/css" />
+        <link href="{% static "assets/css/theme.css" %}" rel="stylesheet" type="text/css" />
+        <link href="{% static "assets/css/icons.css" %}" rel="stylesheet" type="text/css" />
+
+   
+        <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+
+
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+        <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+    </head>
+
+    <body>        
+        <!-- Begin page -->
+        <div id="layout-wrapper">
+            <div class="header-border"></div>
+            <header id="page-topbar">
+                <div class="navbar-header">
+
+                    <div class="d-flex align-items-left">
+                        <button type="button" class="btn btn-sm mr-2 d-lg-none px-3 font-size-16 header-item waves-effect"
+                            id="vertical-menu-btn">
+                            <i class="fa fa-fw fa-bars"></i>
+                        </button>
+
+                        <div class="dropdown d-none d-sm-inline-block">
+                            <button type="button" class="btn header-item waves-effect"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                 Welcome, {{user.role}}
+                            </button>
+                            
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center">
+  
+                        <div class="dropdown d-inline-block ml-2">
+                            <button type="button" class="btn header-item waves-effect"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <span class="d-none d-sm-inline-block ml-1"> {{user.phone_number}}</span>
+                                <i class="mdi mdi-chevron-down d-none d-sm-inline-block"></i>
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-right">
+                               
+                                <a class="dropdown-item d-flex align-items-center justify-content-between"
+                                    href="">
+                                    Profile
+                                </a>
+                               
+                                <a class="dropdown-item d-flex align-items-center justify-content-between"
+                                    href="{% url "logout" %}">
+                                    <span>Log Out</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- ========== Left Sidebar Start ========== -->
+            <div class="vertical-menu">
+                <div data-simplebar class="h-100">
+                    <div class="navbar-brand-box">
+                        {% comment %} <a href="{% if user.is_authenticated %}{% if user.role == user.ADMIN %}{% url 'admindashboard' %}{% else %}{% url 'userdashboard' %}{% endif %}{% else %}#{% endif %}" class="logo"> {% endcomment %}
+                            <a href="{% url "index" %}" >
+                            <img  src="{% static 'img/logo.png' %}" height="80" width="130" alt="Dashboard Logo">
+                        </a>
+                    </div>
+                    <!--- Sidemenu -->
+                    <div id="sidebar-menu">
+                        <!-- Left Menu Start -->
+                        <ul class="metismenu list-unstyled" id="side-menu">
+                            <li class="menu-title">Menu</li>
+                            {% if user.role == user.ADMIN %}
+                                <li>
+                                    <a href="{% url "admin_dashboard" %}" class="waves-effect"><i class="mdi mdi-home-analytics"></i><span>Dashboard</span></a>
+                                </li>
+                                <li>
+                                    <a href="{% url "daily_record" %}" class="waves-effect"><i class="mdi mdi-home-analytics"></i><span>Daily Summary</span></a>
+                                </li>
+                                <li>
+                                    <a href="{% url "manage_salaries" %}" class="waves-effect"><i class="mdi mdi-home-analytics"></i><span>Salary Record</span></a>
+                                </li>
+                                
+                                <li>
+                                    <a href="{% url "delivery" %}" class="waves-effect"><i class="mdi mdi-car"></i><span>Delivery</span></a>
+                                </li>
+                                
+                                <li>
+                                    <a href="{% url "attendance" %}" class="waves-effect"><i class="mdi mdi-account-clock"></i><span> Attendance</span></a>
+                                </li>
+                                <li>
+                                    <a href="{% url "monthly_summary" %}" class="waves-effect"><i class="mdi mdi-account"></i><span>Monthly Summary</span></a>
+                                </li>
+                                <li>
+                                    <a href="{% url "send_monthly_summary" %}" class="waves-effect"><i class="mdi mdi-account"></i><span>Summary PDF </span></a>
+                                </li>
+                                <li>
+                                    <a href="{% url "expenses" %}" class="waves-effect"><i class="mdi mdi-note"></i><span> Monthly Expenses </span></a>
+                                </li>
+                                
+                                <li>
+                                    <a class="waves-effect" href="{% url "admin_change_password" %}"><i class="mdi mdi-security"></i><span>Change Password</span></a>
+                                </li>
+                                {% elif user.role == user.STAFF %}
+                                
+                                <li>
+                                    <a href="{% url "staff_dashboard" %}" class="waves-effect"><i class="mdi mdi-home-analytics"></i><span>Dashboard</span></a>
+                                </li>
+                                
+                                <li>
+                                    <a href="{% url "delivery" %}" class="waves-effect"><i class="mdi mdi-car"></i><span>Delivery</span></a>
+                                </li>
+                                
+                                <li>
+                                    <a href="{% url "attendance" %}" class="waves-effect"><i class="mdi mdi-account-clock"></i><span> Attendance</span></a>
+                                </li>
+                                <li>
+                                    <a href="{% url "add_attendance" %}" class="waves-effect"><i class="mdi mdi-account-clock"></i><span>Add Attendance</span></a>
+                                </li>
+                                <li>
+                                    <a href="{% url "add_delivery" %}" class="waves-effect"><i class="mdi mdi-plus"></i><span> Add Delivery</span></a>
+                                </li>
+                                <li>
+                                    <a href="{% url "all_deliveries" %}" class="waves-effect"><i class="mdi mdi-note"></i><span> Orders </span></a>
+                                </li>
+                                <li>
+                                    <a href="{% url "jar_in_out_create" %}" class="waves-effect"><i class="mdi mdi-note"></i><span> Jar In&Out </span></a>
+                                </li>
+                                <li>
+                                    <a href="{% url "jar_in_out_list" %}" class="waves-effect"><i class="mdi mdi-note"></i><span> Jar In&Out List </span></a>
+                                </li>
+                                <li>
+                                    <a href="{% url "bill_list" %}" class="waves-effect"><i class="mdi mdi-note"></i><span> Bill List</span></a>
+                                </li>
+                                <li>
+                                    <a href="{% url "jar_cap_list" %}" class="waves-effect"><i class="mdi mdi-note"></i><span> Jar Caps</span></a>
+                                </li>
+                                
+                                {% elif user.role == user.DRIVER %}
+                                <li>
+                                    <a href="{% url "driver_dashboard" %}" class="waves-effect"><i class="mdi mdi-home-analytics"></i><span>Dashboard</span></a>
+                                </li>
+                                <li>
+                                    <a href="{% url "add_attendance" %}" class="waves-effect"><i class="mdi mdi-account-clock"></i><span>Add Attendance</span></a>
+                                </li>
+                                
+                                <li>
+                                    <a href="{% url "attendance" %}" class="waves-effect"><i class="mdi mdi-account-clock"></i><span> Attendance</span></a>
+                                </li>
+                                
+                                <li>
+                                    <a href="{% url "delivery" %}" class="waves-effect"><i class="mdi mdi-car"></i><span>Delivery</span></a>
+                                </li>
+                                <li>
+                                    <a href="{% url "add_delivery" %}" class="waves-effect"><i class="mdi mdi-plus"></i><span>Add Delivery</span></a>
+                                </li>
+                                {% endif %}
+
+                        </ul>
+                    </div>
+                    <!-- Sidebar -->
+                </div>
+            </div>
+            <!-- Left Sidebar End -->
+
+            <div class="main-content">
+
+                <div class="page-content">
+                    <div class="container-fluid">
+                        {% block content %}
+                        
+                        
+                        {% endblock content %}
+                    </div> 
+                </div>
+                <!-- End Page-content -->
+                
+                <footer class="footer">
+                    <div class="container-fluid">
+                        <div class="row">
+                                
+                            <div class="col-sm-6">
+                                <h5> 2024 - Sarvashree. </h5>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="text-sm-right d-none d-sm-block">
+                                    Design & Develop by Sarvashree 
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </footer>
+
+            </div>
+            <!-- end main content-->
+
+        </div>
+        <!-- END layout-wrapper -->
+
+        <!-- Overlay-->
+        <div class="menu-overlay"></div>
+        <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+        <!-- jQuery  -->
+        <script src="{% static "assets/js/jquery.min.js" %}"></script>
+        <script src="{% static "assets/js/bootstrap.bundle.min.js" %}"></script>
+        <script src="{% static "assets/js/metismenu.min.js" %}"></script>
+        <script src="{% static "assets/js/waves.js" %}"></script>
+        <script src="{% static "assets/js/simplebar.min.js" %}"></script>
+
+
+
+        <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+        <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap4.min.js"></script>
+
+        <!-- Buttons extension CSS and JS (for printing, exporting, etc.) -->
+        <link href="https://cdn.datatables.net/buttons/2.2.2/css/buttons.bootstrap4.min.css" rel="stylesheet">
+        <script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+        <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.bootstrap4.min.js"></script>
+        <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.html5.min.js"></script>
+        <script src="https://cdn.datatables.net/buttons/2.2.2/js/buttons.print.min.js"></script>
+
+        <!-- JSZip and PDFMake (for exporting to Excel, CSV, PDF) -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+       
+
+
+        <!-- jQuery  -->
+        <script src="{% static "assets/js/bootstrap.bundle.min.js" %}"></script>
+        <script src="{% static "assets/js/metismenu.min.js" %}"></script>
+        <script src="{% static "assets/js/waves.js" %}"></script>
+        <script src="{% static "assets/js/simplebar.min.js" %}"></script>
+
+        <!-- App js -->
+        <script src="{% static "assets/js/theme.js" %}"></script>
+
+    </body>
+
+</html>
