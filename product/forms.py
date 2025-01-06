@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta, timezone
 from django import forms
-from .models import Bill, Delivery, JarCap, JarInOut, MonthlyExpense
-
+from .models import Bill, Delivery, FillerLedger, JarCap, JarInOut, MonthlyExpense
+from django import forms
+from .models import MonthlyExpense, Vendor, Product
 class DeliveryForm(forms.ModelForm):
     class Meta:
         model = Delivery
@@ -23,8 +24,7 @@ class DeliveryForm(forms.ModelForm):
             'half_caps_count': forms.NumberInput(attrs={'class': 'form-control'}),
         }
 
-from django import forms
-from .models import MonthlyExpense, Vendor, Product
+
 
 class MonthlyExpenseForm(forms.ModelForm):
     class Meta:
@@ -76,17 +76,19 @@ class JarInOutForm(forms.ModelForm):
     class Meta:
         model = JarInOut
         fields = [
-            'jar_in', 'jar_out', 'fillers', 'name', 'time',
+            'jar_in', 'jar_out', 'fillers', 'name', 'timestamp',
             'leak', 'half_cap', 'return_jar', 'notes'
         ]
         widgets = {
-            'time': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'timestamp': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
         
     def __init__(self, *args, **kwargs):
         super(JarInOutForm, self).__init__(*args, **kwargs)
         for field_name, field in self.fields.items():
-            field.widget.attrs['class'] = 'form-control'
+            if field_name != 'timestamp':  # Timestamp already has its widget defined
+                field.widget.attrs['class'] = 'form-control'
 
 
 
@@ -151,3 +153,14 @@ class DecreaseJarCapForm(forms.Form):
         label="Use Bora",
         widget=forms.NumberInput(attrs={'class': 'form-control'})
     )
+class FillerLedgerForm(forms.ModelForm):
+    class Meta:
+        model = FillerLedger
+        fields = ['filler', 'jar_in_out', 'amount_received', 'amount_due', 'remarks']
+        widgets = {
+            'remarks': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'amount_received': forms.NumberInput(attrs={'class': 'form-control'}),
+            'amount_due': forms.NumberInput(attrs={'class': 'form-control'}),
+            'filler': forms.Select(attrs={'class': 'form-control'}),
+            'jar_in_out': forms.Select(attrs={'class': 'form-control'}),
+        }

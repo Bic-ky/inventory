@@ -4,8 +4,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from account.models import Attendance, User
-from .forms import BillForm, DecreaseJarCapForm, DeliveryForm, IncreaseJarCapForm, JarCapForm, JarInOutForm, MonthlyExpenseForm
-from .models import Bill, Customer, Delivery, Filler, JarCap, JarInOut
+from .forms import BillForm, DecreaseJarCapForm, DeliveryForm, FillerLedgerForm, IncreaseJarCapForm, JarCapForm, JarInOutForm, MonthlyExpenseForm
+from .models import Bill, Customer, Delivery, Filler, FillerLedger, JarCap, JarInOut
 from datetime import datetime, timedelta
 from django.db.models import Sum , Avg
 from django.contrib import messages
@@ -313,3 +313,30 @@ def jar_cap_create(request):
 
     return render(request, 'records/jar_cap_create.html', {'form': form})
 
+
+
+
+def filler_list(request):
+    """Display all fillers in a table."""
+    fillers = Filler.objects.all()
+    return render(request, 'filler/filler_list.html', {'fillers': fillers})
+
+def add_ledger_entry(request):
+    """Add a new ledger entry for a filler."""
+    if request.method == 'POST':
+        form = FillerLedgerForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('filler_list')  # Redirect to filler list or relevant page
+    else:
+        form = FillerLedgerForm()
+    return render(request, 'filler/add_ledger_entry.html', {'form': form})
+
+def filler_detail(request, pk):
+    """Display the ledger records and jar records for a specific filler."""
+    filler = get_object_or_404(Filler, pk=pk)
+    ledger_records = filler.ledger_entries.select_related('jar_in_out')
+    return render(request, 'filler/filler_detail.html', {
+        'filler': filler,
+        'ledger_records': ledger_records
+    })
