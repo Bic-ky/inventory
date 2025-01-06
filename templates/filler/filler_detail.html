@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Details for {{ filler.contact_person }}</h2>
+    <p><strong>Contact Number:</strong> {{ filler.number }}</p>
+    <p><strong>Vehicle Number:</strong> {{ filler.vehicle_number }}</p>
+
+    <h4>Ledger Records</h4>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Jar In</th>
+                <th>Jar Out</th>
+                <th>Amount Received</th>
+                <th>Amount Due</th>
+                <th>Remarks</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ledger in ledger_records %}
+            <tr>
+                <td>{{ ledger.date|date:"Y-m-d H:i" }}</td>
+                <td>{{ ledger.jar_in_out.jar_in }}</td>
+                <td>{{ ledger.jar_in_out.jar_out }}</td>
+                <td>{{ ledger.amount_received }}</td>
+                <td>{{ ledger.amount_due }}</td>
+                <td>{{ ledger.remarks }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6">No Ledger Records Found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="{% url 'add_ledger_entry' %}" class="btn btn-primary mt-3">Add Ledger Entry</a>
+    <a href="{% url 'filler_list' %}" class="btn btn-secondary mt-3">Back to Fillers List</a>
+</div>
+{% endblock %}

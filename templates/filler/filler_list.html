@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Fillers List</h2>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Contact Person</th>
+                <th>Contact Number</th>
+                <th>Vehicle Number</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for filler in fillers %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ filler.contact_person }}</td>
+                <td>{{ filler.number }}</td>
+                <td>{{ filler.vehicle_number }}</td>
+                <td>
+                    <a href="{% url 'filler_detail' filler.pk %}" class="btn btn-primary btn-sm">View Details</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

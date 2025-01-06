@@ -27,4 +27,8 @@ urlpatterns =[
     path('jarcaps/new/', views.jar_cap_create, name='jar_cap_create'),
     path('get-filler-vehicle/<int:filler_id>/', views.get_filler_vehicle, name='get_filler_vehicle'),
 
+    path('fillers/', views.filler_list, name='filler_list'),
+    path('fillers/<int:pk>/', views.filler_detail, name='filler_detail'),
+     path('ledger/add/', views.add_ledger_entry, name='add_ledger_entry'),
+
 ]
