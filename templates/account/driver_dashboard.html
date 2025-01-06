@@ -1,90 +1,35 @@
-{% extends "base.html" %}
+{% extends "base.html" %} {% block content %}
 
-{% block content %}
+<div class="container">
+  <h1 class="text-center mb-4">Driver Dashboard</h1>
 
-
-
-<div class="container mt-5">
-    <h1 class="text-center mb-4">Driver Dashboard</h1>
-
-    <div class="row">
-        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-            <!-- Load message -->
-            {% include 'alerts2.html' %}
-        </div>
-        <!-- Total Jars -->
-        <div class="col-md-3">
-            <div class="card text-dark mb-3">
-                <div class="card-header">Total Jars</div>
-                <div class="card-body">
-                    <h5 class="card-title">{{ total_jars }}</h5>
-                </div>
-            </div>
-        </div>
-
-        <!-- Returned Jars -->
-        <div class="col-md-3">
-            <div class="card text-dark mb-3">
-                <div class="card-header">Returned Jars</div>
-                <div class="card-body">
-                    <h5 class="card-title">{{ returned_jars }}</h5>
-                </div>
-            </div>
-        </div>
-
-        <!-- Damaged Jars -->
-        <div class="col-md-3">
-            <div class="card text-dark mb-3">
-                <div class="card-header">Damaged Jars</div>
-                <div class="card-body">
-                    <h5 class="card-title">{{ damaged_jars }}</h5>
-                </div>
-            </div>
-        </div>
-
-        <!-- Today's Date -->
-        <div class="col-md-3">
-            <div class="card text-dark  mb-3">
-                <div class="card-header">Today's Date</div>
-                <div class="card-body">
-                    <h5 class="card-title">{{ today_date }}</h5>
-                </div>
-            </div>
-        </div>
+  <!-- Table for Detailed Records -->
+  <div class="card mt-4">
+    <div class="card-header text-dark">Detailed Records</div>
+    <div class="card-body">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>S.N.</th>
+            <th>Jars Dispatched</th>
+            <th>Jars Delivered</th>
+            <th>Jars Returned</th>
+            <th>Jars Damaged</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% comment %} {% for record in records %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ record.jars_delivered }}</td>
+            <td>{{ record.jars_returned }}</td>
+            <td>{{ record.jars_damaged }}</td>
+          </tr>
+          {% endfor %} {% endcomment %}
+        </tbody>
+      </table>
     </div>
-
-    <!-- Table for Detailed Records -->
-    <div class="card mt-4">
-        <div class="card-header text-dark">
-            Detailed Records
-        </div>
-        <div class="card-body">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Driver Name</th>
-                        <th>Jars Dispatched</th>
-                        <th>Jars Delivered</th>
-                        <th>Jars Returned</th>
-                        <th>Jars Damaged</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for record in records %}
-                    <tr>
-                        <td>{{ forloop.counter }}</td>
-                        <td>{{ record.driver.full_name }}</td>
-                        <td>{{ record.jars_dispatched }}</td>
-                        <td>{{ record.jars_delivered }}</td>
-                        <td>{{ record.jars_returned }}</td>
-                        <td>{{ record.jars_damaged }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+  </div>
 </div>
 
 <!-- Include Bootstrap JS -->
