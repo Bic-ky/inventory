@@ -5,7 +5,8 @@
 
 <form method="POST" id="deliveryForm">
   {% csrf_token %}
-  {% include 'alerts2.html' %}
+  {% include 'alerts2.html' %} <!-- For displaying error messages -->
+
   <h4>Delivery Details</h4>
   <div class="row">
     <div class="col-md-3 col-6">
@@ -41,6 +42,10 @@
         {{ form.existing_customer }}
       </div>
       <div class="col-md-4 col-12">
+        {{ form.existing_in_hand_customer.label_tag }}
+        {{ form.existing_in_hand_customer }}
+      </div>
+      <div class="col-md-4 col-12">
         {{ form.new_customer_name.label_tag }}
         {{ form.new_customer_name }}
       </div>
@@ -69,62 +74,88 @@
   <button type="submit" class="btn btn-success">Submit</button>
 </form>
 
-<!-- Hidden row template -->
-<div id="deliveryRowTemplate" style="display: none;">
+<!-- Hidden Row Template -->
+<script type="text/template" id="deliveryRowTemplate">
   <div class="delivery-row row">
     <div class="col-md-4 col-12">
-      <label for="customer_type">Customer Type</label>
-      <select name="form-__prefix__-customer_type" class="form-control text-center">
-        <option value="monthly">Monthly Base</option>
-        <option value="in_hand">In-Hand</option>
+      <label>Customer Type</label>
+      <select name="form-__prefix__-customer_type" class="form-control">
+        <option value="monthly">Monthly Customer</option>
+        <option value="in_hand_existing">Existing In-Hand Customer</option>
+        <option value="in_hand_new">New In-Hand Customer</option>
       </select>
     </div>
     <div class="col-md-4 col-12">
-      <label for="existing_customer">Existing Customer</label>
-      <select name="form-__prefix__-existing_customer" class="form-control text-center">
-        <option value="">--- Select Existing Customer ---</option>
-        {% for customer in customer_formset.forms.0.fields.existing_customer.queryset %}
-        <option value="{{ customer.id }}">{{ customer.name }}</option>
-        {% endfor %}
+      <label>Existing Monthly Customer</label>
+      <select name="form-__prefix__-existing_customer" class="form-control">
+        <option value="">--- Select Existing Monthly Customer ---</option>
       </select>
     </div>
     <div class="col-md-4 col-12">
-      <label for="new_customer_name">New Customer Name</label>
+      <label>Existing In-Hand Customer</label>
+      <select name="form-__prefix__-existing_in_hand_customer" class="form-control">
+        <option value="">--- Select Existing In-Hand Customer ---</option>
+      </select>
+    </div>
+    <div class="col-md-4 col-12">
+      <label>New In-Hand Customer Name</label>
       <input type="text" name="form-__prefix__-new_customer_name" class="form-control" />
     </div>
     <div class="col-md-4 col-12">
-      <label for="new_customer_contact">New Customer Contact</label>
+      <label>New In-Hand Customer Contact</label>
       <input type="text" name="form-__prefix__-new_customer_contact" class="form-control" />
     </div>
     <div class="col-md-4 col-6">
-      <label for="quantity">Quantity</label>
+      <label>Quantity</label>
       <input type="number" name="form-__prefix__-quantity" class="form-control" />
     </div>
     <div class="col-md-4 col-6">
-      <label for="price_per_jar">Price per Jar</label>
+      <label>Price per Jar</label>
       <input type="number" name="form-__prefix__-price_per_jar" class="form-control" />
     </div>
     <div class="col-12 text-right mt-2">
       <button type="button" class="btn btn-danger remove-row">Remove</button>
     </div>
+    <hr>
   </div>
-  <hr>
-</div>
+</script>
 
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     const addRowButton = document.getElementById("addRow");
     const container = document.getElementById("customerDeliveriesContainer");
+    const totalFormsInput = document.getElementById("id_form-TOTAL_FORMS");
     const rowTemplate = document.getElementById("deliveryRowTemplate").innerHTML;
+
+    const monthlyCustomers = {{ monthly_customers|safe }};
+    const inHandCustomers = {{ in_hand_customers|safe }};
 
     // Add new customer row
     addRowButton.addEventListener("click", function () {
-      const formCount = parseInt(document.getElementById("id_form-TOTAL_FORMS").value);
+      const formCount = parseInt(totalFormsInput.value);
       const newRowHtml = rowTemplate.replace(/__prefix__/g, formCount);
 
-      // Append new row and update form count
       container.insertAdjacentHTML("beforeend", newRowHtml);
-      document.getElementById("id_form-TOTAL_FORMS").value = formCount + 1;
+      totalFormsInput.value = formCount + 1;
+
+      // Populate dropdowns
+      const newRow = container.lastElementChild;
+      const monthlyDropdown = newRow.querySelector('[name$="-existing_customer"]');
+      const inHandDropdown = newRow.querySelector('[name$="-existing_in_hand_customer"]');
+
+      monthlyCustomers.forEach(customer => {
+        const option = document.createElement("option");
+        option.value = customer.id;
+        option.textContent = customer.name;
+        monthlyDropdown.appendChild(option);
+      });
+
+      inHandCustomers.forEach(customer => {
+        const option = document.createElement("option");
+        option.value = customer.id;
+        option.textContent = customer.name;
+        inHandDropdown.appendChild(option);
+      });
     });
 
     // Remove customer row
@@ -134,7 +165,7 @@
 
         // Update TOTAL_FORMS count
         const formCount = container.querySelectorAll(".delivery-row").length;
-        document.getElementById("id_form-TOTAL_FORMS").value = formCount;
+        totalFormsInput.value = formCount;
       }
     });
   });

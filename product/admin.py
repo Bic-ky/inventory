@@ -17,6 +17,7 @@ from .models import (
     Vendor,
     Filler,
     Trip,
+    DeliveryCustomer,
 )
 from django.utils.html import format_html
 
@@ -119,3 +120,5 @@ admin.site.register(Filler)
 admin.site.register(CreditMarket)
 admin.site.register(JarInOut)
 admin.site.register(Trip)
+admin.site.register(Delivery)
+admin.site.register(DeliveryCustomer)

@@ -29,25 +29,38 @@ class DeliveryForm(forms.ModelForm):
 
 
 class DeliveryCustomerForm(forms.ModelForm):
+    CUSTOMER_TYPE_CHOICES = [
+        ("monthly", "Monthly Customer"),
+        ("in_hand_existing", "Existing In-Hand Customer"),
+        ("in_hand_new", "New In-Hand Customer"),
+    ]
+
     customer_type = forms.ChoiceField(
-        choices=[("monthly", "Monthly Base"), ("in_hand", "In-Hand")],
+        choices=CUSTOMER_TYPE_CHOICES,
         widget=forms.Select(attrs={"class": "form-control"}),
+        label="Customer Type",
     )
     existing_customer = forms.ModelChoiceField(
-        queryset=Customer.objects.all(),
+        queryset=Customer.objects.filter(customer_type="monthly"),
         required=False,
         widget=forms.Select(attrs={"class": "form-control"}),
-        label="Existing Customer",
+        label="Existing Monthly Customer",
+    )
+    existing_in_hand_customer = forms.ModelChoiceField(
+        queryset=Customer.objects.filter(customer_type="in_hand"),
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control"}),
+        label="Existing In-Hand Customer",
     )
     new_customer_name = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={"class": "form-control"}),
-        label="New Customer Name",
+        label="New In-Hand Customer Name",
     )
     new_customer_contact = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={"class": "form-control"}),
-        label="New Customer Contact",
+        label="New In-Hand Customer Contact",
     )
 
     class Meta:
@@ -61,14 +74,18 @@ class DeliveryCustomerForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         customer_type = cleaned_data.get("customer_type")
-        existing_customer = cleaned_data.get("existing_customer")
-        new_customer_name = cleaned_data.get("new_customer_name")
 
-        if customer_type == "monthly" and not existing_customer:
-            raise forms.ValidationError("Please select an existing customer.")
-        if customer_type == "in_hand" and not (existing_customer or new_customer_name):
+        if customer_type == "monthly" and not cleaned_data.get("existing_customer"):
+            raise forms.ValidationError("Please select an existing monthly customer.")
+
+        if customer_type == "in_hand_existing" and not cleaned_data.get(
+            "existing_in_hand_customer"
+        ):
+            raise forms.ValidationError("Please select an existing in-hand customer.")
+
+        if customer_type == "in_hand_new" and not cleaned_data.get("new_customer_name"):
             raise forms.ValidationError(
-                "For in-hand customers, select an existing customer or provide new customer details."
+                "Please provide the name of the new in-hand customer."
             )
 
         return cleaned_data
