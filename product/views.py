@@ -3,6 +3,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
+from django.core.serializers.json import DjangoJSONEncoder
+from django.http import JsonResponse
+
+import json
+
 from account.models import Attendance, User
 from .forms import (
     BillForm,
@@ -81,10 +86,6 @@ def delivery(request):
 def add_delivery(request):
     driver = request.user
     today = date.today()
-    trip_number = Trip.objects.filter(driver=driver, date=today).count() + 1
-    current_trip, _ = Trip.objects.get_or_create(
-        driver=driver, date=today, trip_number=trip_number
-    )
 
     if request.method == "POST":
         print("Submit POST Request")
@@ -94,7 +95,6 @@ def add_delivery(request):
         if delivery_form.is_valid() and customer_formset.is_valid():
             print("Valid Form")
             delivery = delivery_form.save(commit=False)
-            delivery.trip = current_trip
             delivery.driver = driver
 
             # Validate total jars
@@ -116,18 +116,80 @@ def add_delivery(request):
                     f"Total jars ({delivery.total_jars}) must match sum of accounted jars ({accounted_jars}).",
                 )
             else:
-                return redirect("add_delivery")
+                # return redirect("add_delivery")
+                # Create the trip only when validation succeeds
+                trip_number = Trip.objects.filter(driver=driver, date=today).count() + 1
+                current_trip = Trip.objects.create(
+                    driver=driver, date=today, trip_number=trip_number
+                )
+
+                delivery.trip = current_trip
                 delivery.save()
 
                 for form in customer_formset:
                     customer_delivery = form.save(commit=False)
                     customer_delivery.delivery = delivery
+
+                    # Assign customer based on customer_type
+                    customer_type = form.cleaned_data.get("customer_type")
+                    if customer_type == "monthly":
+                        customer_delivery.customer = form.cleaned_data.get(
+                            "existing_customer"
+                        )
+                    elif customer_type == "in_hand_existing":
+                        customer_delivery.customer = form.cleaned_data.get(
+                            "existing_in_hand_customer"
+                        )
+                    elif customer_type == "in_hand_new":
+                        # Create a new customer for 'in_hand_new'
+                        new_customer = Customer.objects.create(
+                            name=form.cleaned_data.get("new_customer_name"),
+                            contact_number=form.cleaned_data.get(
+                                "new_customer_contact"
+                            ),
+                            customer_type="in_hand",
+                        )
+                        customer_delivery.customer = new_customer
+
                     customer_delivery.save()
 
                 messages.success(request, "Delivery added successfully.")
                 return redirect("add_delivery")
         else:
             print("Not Valid POST Request")
+            print(delivery_form.errors)
+            print(customer_formset.errors)
+
+            # Handle delivery form errors
+            if not delivery_form.is_valid():
+                for field in delivery_form:
+                    for error in field.errors:
+                        messages.error(
+                            request, f"Error in field '{field.label}': {error}"
+                        )
+
+                # Handle non-field errors (form-wide errors) for delivery form
+                for error in delivery_form.non_field_errors():
+                    messages.error(request, f"Error: {error}")
+
+            # Handle customer formset errors
+            if not customer_formset.is_valid():
+                for i, form in enumerate(customer_formset):  # Add index for form number
+                    for field in form:
+                        for error in field.errors:
+                            messages.error(
+                                request,
+                                f"Customer {i+1} Error in field '{field.label}': {error}",  # Display form number
+                            )
+                    for (
+                        error
+                    ) in (
+                        form.non_field_errors()
+                    ):  # handle non field errors for each form in the formset
+                        messages.error(request, f"Customer {i+1} Error: {error}")
+
+                for error in customer_formset.non_form_errors():
+                    messages.error(request, f"Customer Formset Error: {error}")
     else:
         print("GET Request")
         delivery_form = DeliveryForm()
@@ -135,6 +197,12 @@ def add_delivery(request):
             queryset=DeliveryCustomer.objects.none()
         )
 
+    monthly_customers = list(
+        Customer.objects.filter(customer_type="monthly").values("id", "name")
+    )
+    in_hand_customers = list(
+        Customer.objects.filter(customer_type="in_hand").values("id", "name")
+    )
     return render(
         request,
         "plant/add_delivery.html",
@@ -142,7 +210,8 @@ def add_delivery(request):
             "delivery_form": delivery_form,
             "customer_formset": customer_formset,
             "driver": driver,
-            "trip": current_trip,
+            "monthly_customers": json.dumps(monthly_customers, cls=DjangoJSONEncoder),
+            "in_hand_customers": json.dumps(in_hand_customers, cls=DjangoJSONEncoder),
         },
     )
 
