@@ -1,55 +1,143 @@
-{% extends "base.html" %} 
+{% extends "base.html" %}
 {% block content %}
 
-<div class="row">
-  <div class="col-xl-12">
-    <div class="card">
-      <div class="card-body">
-        <h2>Add Delivery</h2>
-        <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-          <!-- Load message -->
-          {% include 'alerts2.html' %}
-        </div>
-        <p class="card-subtitle mb-4">
-          Use the form below to add a new delivery record.
-        </p>
+<h2>Add Delivery</h2>
 
-        <form method="POST">
-        {% csrf_token %}
-        <h4>Delivery Details</h4>
-        {{ delivery_form.as_p }}
-        <h4>Customer Deliveries</h4>
-        {{ customer_formset.management_form }}
-        {% for form in customer_formset %}
-            <div class="form-row">
-                <div class="col-md-6">
-                    {{ form.existing_customer.label_tag }}
-                    {{ form.existing_customer }}
-                </div>
-                <div class="col-md-6">
-                    {{ form.new_customer_name.label_tag }}
-                    {{ form.new_customer_name }}
-                </div>
-                <div class="col-md-6">
-                    {{ form.new_customer_contact.label_tag }}
-                    {{ form.new_customer_contact }}
-                </div>
-                <div class="col-md-6">
-                    {{ form.quantity.label_tag }}
-                    {{ form.quantity }}
-                </div>
-                <div class="col-md-6">
-                    {{ form.price_per_jar.label_tag }}
-                    {{ form.price_per_jar }}
-                </div>
-            </div>
-            <hr>
-        {% endfor %}
-        <button type="submit" class="btn btn-primary">Submit</button>
-    </form>
-      </div>
+<form method="POST" id="deliveryForm">
+  {% csrf_token %}
+  {% include 'alerts2.html' %}
+  <h4>Delivery Details</h4>
+  <div class="row">
+    <div class="col-md-3 col-6">
+      {{ delivery_form.total_jars.label_tag }}
+      {{ delivery_form.total_jars }}
+    </div>
+    <div class="col-md-3 col-6">
+      {{ delivery_form.returned_count.label_tag }}
+      {{ delivery_form.returned_count }}
+    </div>
+    <div class="col-md-3 col-6">
+      {{ delivery_form.leak_count.label_tag }}
+      {{ delivery_form.leak_count }}
+    </div>
+    <div class="col-md-3 col-6">
+      {{ delivery_form.half_caps_count.label_tag }}
+      {{ delivery_form.half_caps_count }}
     </div>
   </div>
+
+  <h4>Customer Deliveries</h4>
+  {{ customer_formset.management_form }}
+
+  <div id="customerDeliveriesContainer">
+    {% for form in customer_formset %}
+    <div class="delivery-row row">
+      <div class="col-md-4 col-12">
+        {{ form.customer_type.label_tag }}
+        {{ form.customer_type }}
+      </div>
+      <div class="col-md-4 col-12">
+        {{ form.existing_customer.label_tag }}
+        {{ form.existing_customer }}
+      </div>
+      <div class="col-md-4 col-12">
+        {{ form.new_customer_name.label_tag }}
+        {{ form.new_customer_name }}
+      </div>
+      <div class="col-md-4 col-12">
+        {{ form.new_customer_contact.label_tag }}
+        {{ form.new_customer_contact }}
+      </div>
+      <div class="col-md-4 col-6">
+        {{ form.quantity.label_tag }}
+        {{ form.quantity }}
+      </div>
+      <div class="col-md-4 col-6">
+        {{ form.price_per_jar.label_tag }}
+        {{ form.price_per_jar }}
+      </div>
+      <div class="col-12 text-right mt-2">
+        <button type="button" class="btn btn-danger remove-row">Remove</button>
+      </div>
+    </div>
+    <hr>
+    {% endfor %}
+  </div>
+
+  <button type="button" id="addRow" class="btn btn-primary">Add Customer</button>
+  <br><br>
+  <button type="submit" class="btn btn-success">Submit</button>
+</form>
+
+<!-- Hidden row template -->
+<div id="deliveryRowTemplate" style="display: none;">
+  <div class="delivery-row row">
+    <div class="col-md-4 col-12">
+      <label for="customer_type">Customer Type</label>
+      <select name="form-__prefix__-customer_type" class="form-control text-center">
+        <option value="monthly">Monthly Base</option>
+        <option value="in_hand">In-Hand</option>
+      </select>
+    </div>
+    <div class="col-md-4 col-12">
+      <label for="existing_customer">Existing Customer</label>
+      <select name="form-__prefix__-existing_customer" class="form-control text-center">
+        <option value="">--- Select Existing Customer ---</option>
+        {% for customer in customer_formset.forms.0.fields.existing_customer.queryset %}
+        <option value="{{ customer.id }}">{{ customer.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4 col-12">
+      <label for="new_customer_name">New Customer Name</label>
+      <input type="text" name="form-__prefix__-new_customer_name" class="form-control" />
+    </div>
+    <div class="col-md-4 col-12">
+      <label for="new_customer_contact">New Customer Contact</label>
+      <input type="text" name="form-__prefix__-new_customer_contact" class="form-control" />
+    </div>
+    <div class="col-md-4 col-6">
+      <label for="quantity">Quantity</label>
+      <input type="number" name="form-__prefix__-quantity" class="form-control" />
+    </div>
+    <div class="col-md-4 col-6">
+      <label for="price_per_jar">Price per Jar</label>
+      <input type="number" name="form-__prefix__-price_per_jar" class="form-control" />
+    </div>
+    <div class="col-12 text-right mt-2">
+      <button type="button" class="btn btn-danger remove-row">Remove</button>
+    </div>
+  </div>
+  <hr>
 </div>
 
-{% endblock content %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const addRowButton = document.getElementById("addRow");
+    const container = document.getElementById("customerDeliveriesContainer");
+    const rowTemplate = document.getElementById("deliveryRowTemplate").innerHTML;
+
+    // Add new customer row
+    addRowButton.addEventListener("click", function () {
+      const formCount = parseInt(document.getElementById("id_form-TOTAL_FORMS").value);
+      const newRowHtml = rowTemplate.replace(/__prefix__/g, formCount);
+
+      // Append new row and update form count
+      container.insertAdjacentHTML("beforeend", newRowHtml);
+      document.getElementById("id_form-TOTAL_FORMS").value = formCount + 1;
+    });
+
+    // Remove customer row
+    container.addEventListener("click", function (event) {
+      if (event.target.classList.contains("remove-row")) {
+        event.target.closest(".delivery-row").remove();
+
+        // Update TOTAL_FORMS count
+        const formCount = container.querySelectorAll(".delivery-row").length;
+        document.getElementById("id_form-TOTAL_FORMS").value = formCount;
+      }
+    });
+  });
+</script>
+
+{% endblock %}

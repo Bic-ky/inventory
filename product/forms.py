@@ -14,6 +14,8 @@ from django.forms import modelformset_factory
 from .models import Bill, Delivery, FillerLedger, JarCap, JarInOut, MonthlyExpense
 from django import forms
 from .models import MonthlyExpense, Vendor, Product
+
+
 class DeliveryForm(forms.ModelForm):
     class Meta:
         model = Delivery
@@ -27,21 +29,25 @@ class DeliveryForm(forms.ModelForm):
 
 
 class DeliveryCustomerForm(forms.ModelForm):
+    customer_type = forms.ChoiceField(
+        choices=[("monthly", "Monthly Base"), ("in_hand", "In-Hand")],
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
     existing_customer = forms.ModelChoiceField(
-        queryset=Customer.objects.filter(is_monthly_customer=True),
+        queryset=Customer.objects.all(),
         required=False,
         widget=forms.Select(attrs={"class": "form-control"}),
-        label="Existing Customer (Monthly Base)",
+        label="Existing Customer",
     )
     new_customer_name = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={"class": "form-control"}),
-        label="New Customer Name (In-Hand)",
+        label="New Customer Name",
     )
     new_customer_contact = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={"class": "form-control"}),
-        label="New Customer Contact (Optional)",
+        label="New Customer Contact",
     )
 
     class Meta:
@@ -54,20 +60,24 @@ class DeliveryCustomerForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        customer_type = cleaned_data.get("customer_type")
         existing_customer = cleaned_data.get("existing_customer")
         new_customer_name = cleaned_data.get("new_customer_name")
 
-        if not existing_customer and not new_customer_name:
+        if customer_type == "monthly" and not existing_customer:
+            raise forms.ValidationError("Please select an existing customer.")
+        if customer_type == "in_hand" and not (existing_customer or new_customer_name):
             raise forms.ValidationError(
-                "Please select an existing customer or provide details for a new customer."
+                "For in-hand customers, select an existing customer or provide new customer details."
             )
+
         return cleaned_data
 
 
 DeliveryCustomerFormSet = modelformset_factory(
     DeliveryCustomer,
     form=DeliveryCustomerForm,
-    extra=1,
+    extra=0,
 )
 
 
@@ -147,26 +157,18 @@ class JarInOutForm(forms.ModelForm):
             "notes",
         ]
         widgets = {
-            "time": forms.DateTimeInput(
+            "timestamp": forms.DateTimeInput(
                 attrs={"type": "datetime-local", "class": "form-control"}
             ),
-            'jar_in', 'jar_out', 'fillers', 'name', 'timestamp',
-            'leak', 'half_cap', 'return_jar', 'notes'
-        ]
-        widgets = {
-            'timestamp': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
         }
 
     def __init__(self, *args, **kwargs):
         super(JarInOutForm, self).__init__(*args, **kwargs)
         for field_name, field in self.fields.items():
             field.widget.attrs["class"] = "form-control"
-            if field_name != 'timestamp':  # Timestamp already has its widget defined
-                field.widget.attrs['class'] = 'form-control'
-
-
-
+            if field_name != "timestamp":  # Timestamp already has its widget defined
+                field.widget.attrs["class"] = "form-control"
 
 
 class BillForm(forms.ModelForm):
@@ -238,17 +240,17 @@ class DecreaseJarCapForm(forms.Form):
         label="Use Bora",
         widget=forms.NumberInput(attrs={"class": "form-control"}),
     )
-        widget=forms.NumberInput(attrs={'class': 'form-control'})
-    )
+    widget = forms.NumberInput(attrs={"class": "form-control"})
+
+
 class FillerLedgerForm(forms.ModelForm):
     class Meta:
         model = FillerLedger
-        fields = ['filler', 'jar_in_out', 'amount_received', 'amount_due', 'remarks']
+        fields = ["filler", "jar_in_out", "amount_received", "amount_due", "remarks"]
         widgets = {
-            'remarks': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
-            'amount_received': forms.NumberInput(attrs={'class': 'form-control'}),
-            'amount_due': forms.NumberInput(attrs={'class': 'form-control'}),
-            'filler': forms.Select(attrs={'class': 'form-control'}),
-            'jar_in_out': forms.Select(attrs={'class': 'form-control'}),
+            "remarks": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
+            "amount_received": forms.NumberInput(attrs={"class": "form-control"}),
+            "amount_due": forms.NumberInput(attrs={"class": "form-control"}),
+            "filler": forms.Select(attrs={"class": "form-control"}),
+            "jar_in_out": forms.Select(attrs={"class": "form-control"}),
         }
-

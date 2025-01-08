@@ -25,7 +25,16 @@ from .models import (
     Trip,
     DeliveryCustomer,
 )
-from .forms import BillForm, DecreaseJarCapForm, DeliveryForm, FillerLedgerForm, IncreaseJarCapForm, JarCapForm, JarInOutForm, MonthlyExpenseForm
+from .forms import (
+    BillForm,
+    DecreaseJarCapForm,
+    DeliveryForm,
+    FillerLedgerForm,
+    IncreaseJarCapForm,
+    JarCapForm,
+    JarInOutForm,
+    MonthlyExpenseForm,
+)
 from .models import Bill, Customer, Delivery, Filler, FillerLedger, JarCap, JarInOut
 from datetime import datetime, timedelta
 from django.db.models import Sum, Avg
@@ -73,22 +82,24 @@ def add_delivery(request):
     driver = request.user
     today = date.today()
     trip_number = Trip.objects.filter(driver=driver, date=today).count() + 1
-    current_trip, created = Trip.objects.get_or_create(
+    current_trip, _ = Trip.objects.get_or_create(
         driver=driver, date=today, trip_number=trip_number
     )
 
     if request.method == "POST":
+        print("Submit POST Request")
         delivery_form = DeliveryForm(request.POST)
         customer_formset = DeliveryCustomerFormSet(request.POST)
 
         if delivery_form.is_valid() and customer_formset.is_valid():
+            print("Valid Form")
             delivery = delivery_form.save(commit=False)
             delivery.trip = current_trip
             delivery.driver = driver
 
             # Validate total jars
             delivered_count = sum(
-                int(form.cleaned_data["quantity"])
+                form.cleaned_data["quantity"]
                 for form in customer_formset
                 if form.cleaned_data
             )
@@ -99,35 +110,26 @@ def add_delivery(request):
                 + delivery.half_caps_count
             )
             if accounted_jars != delivery.total_jars:
+                print("Not valid Jar Number")
                 messages.error(
                     request,
-                    f"Total jars must equal the sum of delivered, returned, leaked, and half caps. Found {accounted_jars}, expected {delivery.total_jars}.",
+                    f"Total jars ({delivery.total_jars}) must match sum of accounted jars ({accounted_jars}).",
                 )
             else:
+                return redirect("add_delivery")
                 delivery.save()
 
                 for form in customer_formset:
                     customer_delivery = form.save(commit=False)
-                    existing_customer = form.cleaned_data.get("existing_customer")
-                    new_customer_name = form.cleaned_data.get("new_customer_name")
-                    new_customer_contact = form.cleaned_data.get("new_customer_contact")
-
-                    if new_customer_name:
-                        customer, created = Customer.objects.get_or_create(
-                            name=new_customer_name,
-                            contact_number=new_customer_contact,
-                            is_monthly_customer=False,
-                        )
-                    else:
-                        customer = existing_customer
-
-                    customer_delivery.customer = customer
                     customer_delivery.delivery = delivery
                     customer_delivery.save()
 
                 messages.success(request, "Delivery added successfully.")
                 return redirect("add_delivery")
+        else:
+            print("Not Valid POST Request")
     else:
+        print("GET Request")
         delivery_form = DeliveryForm()
         customer_formset = DeliveryCustomerFormSet(
             queryset=DeliveryCustomer.objects.none()
@@ -402,33 +404,33 @@ def jar_cap_create(request):
             return redirect("jar_cap_list")
     else:
         form = JarCapForm()
-    return render(request, 'records/jar_cap_create.html', {'form': form})
-
-
+    return render(request, "records/jar_cap_create.html", {"form": form})
 
 
 def filler_list(request):
     """Display all fillers in a table."""
     fillers = Filler.objects.all()
-    return render(request, 'filler/filler_list.html', {'fillers': fillers})
+    return render(request, "filler/filler_list.html", {"fillers": fillers})
+
 
 def add_ledger_entry(request):
     """Add a new ledger entry for a filler."""
-    if request.method == 'POST':
+    if request.method == "POST":
         form = FillerLedgerForm(request.POST)
         if form.is_valid():
             form.save()
-            return redirect('filler_list')  # Redirect to filler list or relevant page
+            return redirect("filler_list")  # Redirect to filler list or relevant page
     else:
         form = FillerLedgerForm()
-    return render(request, 'filler/add_ledger_entry.html', {'form': form})
+    return render(request, "filler/add_ledger_entry.html", {"form": form})
+
 
 def filler_detail(request, pk):
     """Display the ledger records and jar records for a specific filler."""
     filler = get_object_or_404(Filler, pk=pk)
-    ledger_records = filler.ledger_entries.select_related('jar_in_out')
-    return render(request, 'filler/filler_detail.html', {
-        'filler': filler,
-        'ledger_records': ledger_records
-    })
-
+    ledger_records = filler.ledger_entries.select_related("jar_in_out")
+    return render(
+        request,
+        "filler/filler_detail.html",
+        {"filler": filler, "ledger_records": ledger_records},
+    )
