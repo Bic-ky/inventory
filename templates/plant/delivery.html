@@ -1,71 +1,63 @@
 {% extends "base.html" %}
 
 {% block content %}
-
 <div class="row">
     <div class="col-12">
         <div class="card">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2>Delivery</h2>
+                    <h2>Delivery Summary - {{ current_month_start|date:"F Y" }}</h2>
 
                     <!-- Date filter aligned to the right -->
                     <form method="GET" id="date-filter-form" class="form-inline">
-                        <label for="filter-date" class="mr-2 font-weight-bold">Select Date:</label>
-                        <input type="date" id="filter-date" name="date" class="form-control mr-2" max="{{ today|date:'Y-m-d' }}" value="{{ filter_date|date:'Y-m-d' }}">
+                        <label for="filter-date" class="mr-2 font-weight-bold">Select Month:</label>
+                        <input type="month" id="filter-date" name="date" class="form-control mr-2" value="{{ current_month_start|date:'Y-m' }}">
                         <button type="submit" class="btn btn-primary">Filter</button>
                     </form>
                 </div>
 
                 <!-- Display the table -->
-                <table id="basic-datatable" class="table table-striped dt-responsive nowrap">
+                <table id="basic-datatable" class="table table-striped dt-responsive nowrap"
+                    data-today="{{ today|date:'Y-m-d' }}"
+                    data-month="{{ current_month_start|date:'F Y' }}"
+                    data-driver="{{ driver.full_name }}">
                     <thead>
                         <tr>
-                            <th>Customer Name</th>
-                            <th>Driver</th>
-                            <th>Quantity</th>
-                            <th>Jar Type</th>
                             <th>Date</th>
+                            <th>No. of Trips</th>
+                            <th>Returned Jars</th>
+                            <th>Leak Jars</th>
+                            <th>Half Caps</th>
+                            <th>Total Jars Delivered</th>
+                            <th>No. of Customers</th>
                         </tr>
                     </thead>
-
                     <tbody>
-                        {% for delivery in deliveries %}
+                        {% for summary in delivery_summary %}
                         <tr>
-                            <td>{{ delivery.customer.name }}</td>
-                            <td>{{ delivery.driver.full_name }}</td>
-                            <td>{{ delivery.quantity }}</td>
-
-                            <td>
-                                {% if delivery.jar_type == 'N' %}
-                                    <span class="badge badge-primary">Normal</span>
-                                {% elif delivery.jar_type == 'P' %}
-                                    <span class="badge badge-warning">Premium</span>
-                                {% endif %}
-                            </td>
-
-                            <td>{{ delivery.date }}</td>
+                            <td>{{ summary.trip__date|date:"Y-m-d" }}</td>
+                            <td>{{ summary.no_of_trips }}</td>
+                            <td>{{ summary.total_returned }}</td>
+                            <td>{{ summary.total_leak }}</td>
+                            <td>{{ summary.total_half_caps }}</td>
+                            <td>{{ summary.total_jar_delivered }}</td>
+                            <td>{{ summary.total_customers }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
-
-                <!-- Display totals in bold -->
-                <div class="totals mt-4">
-                    <p><strong>Total Jars Delivered Today: </strong>{{ total_jars }}</p>
-                    <p><strong>Total Leak Jars: </strong>{{ total_leaks }}</p>
-                    <p><strong>Total Half Caps: </strong>{{ total_half_caps }}</p>
-                    <p><strong>Total Jars Returned: </strong>{{ total_returned }}</p>
-                </div>
-            </div> <!-- end card body-->
-        </div> <!-- end card -->
-    </div><!-- end col-->
+            </div>
+        </div>
+    </div>
 </div>
-<!-- end row-->
 
-<!-- DataTables JS for adding print and excel functionality -->
+<!-- DataTables JS for adding print and Excel functionality -->
 <script>
     $(document).ready(function () {
+        const today = $('#basic-datatable').data('today');
+        const currentMonth = $('#basic-datatable').data('month');
+        const driverName = $('#basic-datatable').data('driver');
+
         $('#basic-datatable').DataTable({
             responsive: true,
             dom: 'Bfrtip',
@@ -74,21 +66,30 @@
                     extend: 'print',
                     text: 'Print',
                     customize: function (win) {
-                        // Append the totals section to the print window
-                        $(win.document.body).append(
-                            '<div class="totals">' +
-                                '<p><strong>Total Jars Delivered Today: </strong>' + '{{ total_jars }}' + '</p>' +
-                                '<p><strong>Total Leak Jars: </strong>' + '{{ total_leaks }}' + '</p>' +
-                                '<p><strong>Total Half Caps: </strong>' + '{{ total_half_caps }}' + '</p>' +
-                                '<p><strong>Total Jars Returned: </strong>' + '{{ total_returned }}' + '</p>' +
-                            '</div>'
+                        $(win.document.body).css("margin", "20px");
+                        $(win.document.body).css("margin-left", "40px");
+                        $(win.document.body).prepend(
+                            `<h2 style="text-align:center;">Delivery Summary - ${currentMonth}<br>
+                            Driver: ${driverName}<br>Printed on: ${today}</h2>`
                         );
+                        $(win.document.body).find('table').css("width", "100%");
+                        $(win.document.body).find('table').css("border-collapse", "collapse");
+                        $(win.document.body).find('table th, table td').css("padding", "8px");
+                        $(win.document.body).find('table th, table td').css("border", "1px solid #ddd");
                     }
                 },
-                'excel'   // Excel download button
+                {
+                    extend: 'excelHtml5',
+                    text: 'Download as Excel',
+                    filename: function () {
+                        return `${driverName}-${today}`;
+                    },
+                    title: function () {
+                        return `Delivery Summary - ${driverName} - ${today}`;
+                    }
+                }
             ]
         });
     });
 </script>
-
 {% endblock content %}
