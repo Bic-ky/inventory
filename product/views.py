@@ -42,7 +42,7 @@ from .forms import (
 )
 from .models import Bill, Customer, Delivery, Filler, FillerLedger, JarCap, JarInOut
 from datetime import datetime, timedelta
-from django.db.models import Sum, Avg
+from django.db.models import Sum, Count
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from datetime import date
@@ -51,32 +51,51 @@ from .models import MonthlyExpense
 
 
 def delivery(request):
-    today = timezone.now().date()
-    filter_date = request.GET.get("date", today)
+    today = now().date()
+    current_month_start = today.replace(day=1)
+    current_month_end = (
+        today.replace(month=today.month % 12 + 1, day=1)
+        if today.month < 12
+        else today.replace(year=today.year + 1, month=1, day=1)
+    ) - timedelta(days=1)
 
-    if isinstance(filter_date, str):
-        filter_date = datetime.strptime(filter_date, "%Y-%m-%d").date()
+    filter_date = request.GET.get("date", None)
+    if filter_date:
+        filter_date = datetime.strptime(filter_date, "%Y-%m").date()
+        current_month_start = filter_date.replace(day=1)
+        current_month_end = (
+            filter_date.replace(month=filter_date.month % 12 + 1, day=1)
+            if filter_date.month < 12
+            else filter_date.replace(year=filter_date.year + 1, month=1, day=1)
+        ) - timedelta(days=1)
 
-    # Filter deliveries by the selected date
-    deliveries = Delivery.objects.filter(date=filter_date)
+    driver = request.user
 
-    # Calculate totals
-    total_leaks = deliveries.aggregate(total=Sum("leak_count"))["total"] or 0
-    total_half_caps = deliveries.aggregate(total=Sum("half_caps_count"))["total"] or 0
-    total_delivered_safely = (
-        deliveries.aggregate(total=Sum("delivered_count"))["total"] or 0
+    # Query for all deliveries made by the driver in the selected month
+    deliveries = Delivery.objects.filter(
+        trip__driver=driver, trip__date__range=(current_month_start, current_month_end)
     )
-    total_returned = deliveries.aggregate(total=Sum("returned_count"))["total"] or 0
+
+    # Aggregate data grouped by date
+    delivery_summary = (
+        deliveries.values("trip__date")
+        .annotate(
+            no_of_trips=Count("trip", distinct=True),
+            total_returned=Sum("returned_count"),
+            total_leak=Sum("leak_count"),
+            total_half_caps=Sum("half_caps_count"),
+            total_jar_delivered=Sum("customer_deliveries__quantity"),
+            total_customers=Count("customer_deliveries__customer", distinct=True),
+        )
+        .order_by("trip__date")
+    )
 
     context = {
-        "deliveries": deliveries,
+        "delivery_summary": delivery_summary,
+        "current_month_start": current_month_start,
+        "current_month_end": current_month_end,
         "today": today,
-        "filter_date": filter_date,
-        "total_jars": total_jars,
-        "total_leaks": total_leaks,
-        "total_half_caps": total_half_caps,
-        "total_delivered_safely": total_delivered_safely,
-        "total_returned": total_returned,
+        "driver": driver,
     }
 
     return render(request, "plant/delivery.html", context)

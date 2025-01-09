@@ -6,16 +6,16 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+
 class UserManager(BaseUserManager):
     def create_user(self, phone_number, password=None, role=None):
         if not phone_number:
-            raise ValueError('The Phone Number field must be set')
+            raise ValueError("The Phone Number field must be set")
 
         user = self.model(phone_number=phone_number, role=role)
         user.set_password(password)
         user.save(using=self._db)
         return user
-
 
     def create_superuser(self, phone_number, password=None):
         # Create and save a new superuser with the given phone number and password
@@ -25,27 +25,28 @@ class UserManager(BaseUserManager):
         user.is_superuser = True
         user.save(using=self._db)
         return user
-    
+
+
 class User(AbstractBaseUser):
-    ADMIN = 'ADMIN'
-    STAFF = 'STAFF'
-    DRIVER = 'DRIVER'
+    ADMIN = "ADMIN"
+    STAFF = "STAFF"
+    DRIVER = "DRIVER"
 
     ROLE_CHOICES = [
-        (ADMIN, 'Admin'),
-        (STAFF, 'Staff'),
-        (DRIVER, 'Driver'),
+        (ADMIN, "Admin"),
+        (STAFF, "Staff"),
+        (DRIVER, "Driver"),
     ]
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
-    phone_number = models.CharField(unique=True , max_length=15, null=True, blank=True)
-    full_name = models.CharField(max_length=50,blank=True)
+    phone_number = models.CharField(unique=True, max_length=15, null=True, blank=True)
+    full_name = models.CharField(max_length=50, blank=True)
     email = models.EmailField(max_length=100, unique=False, default="")
 
-    address = models.CharField(max_length=50,blank=True)
-    city = models.CharField(max_length=50,blank=True)
-    country = models.CharField(max_length=50,blank=True)
-    
+    address = models.CharField(max_length=50, blank=True)
+    city = models.CharField(max_length=50, blank=True)
+    country = models.CharField(max_length=50, blank=True)
+
     created_date = models.DateTimeField(default=timezone.now)
     modified_date = models.DateTimeField(auto_now=True)
     date_joined = models.DateTimeField(auto_now=True)
@@ -57,7 +58,7 @@ class User(AbstractBaseUser):
 
     USERNAME_FIELD = "phone_number"
     objects = UserManager()
-    
+
     def __str__(self):
         return str(self.full_name)
 
@@ -68,29 +69,29 @@ class User(AbstractBaseUser):
         return True
 
     def get_role(self):
-        if self.role == 'ADMIN':
-            user_role = 'Admin'
-        elif self.role == 'STAFF':
-            user_role = 'Staff'
+        if self.role == "ADMIN":
+            user_role = "Admin"
+        elif self.role == "STAFF":
+            user_role = "Staff"
         else:
-            user_role = 'Unknown Role'
+            user_role = "Unknown Role"
         return user_role
 
 
-
 class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE ,  related_name='user_profile')
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="user_profile"
+    )
     GENDER_CHOICES = (
-        ('M', 'Male'),
-        ('F', 'Female'),
-        ('O', 'Other'),
+        ("M", "Male"),
+        ("F", "Female"),
+        ("O", "Other"),
     )
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True)
     age = models.PositiveSmallIntegerField(blank=True, null=True)
     profile_picture = models.ImageField(
-        upload_to='users/profile_pictures', blank=True, null=True)
-    
-
+        upload_to="users/profile_pictures", blank=True, null=True
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
@@ -101,10 +102,10 @@ class UserProfile(models.Model):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
-    
 
-@receiver(post_save , sender=User)
-def post_save_create_profile(sender , instance , created , **kwargs):
+
+@receiver(post_save, sender=User)
+def post_save_create_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.create(user=instance)
         print("Userprofile was created.")
@@ -116,17 +117,21 @@ def post_save_create_profile(sender , instance , created , **kwargs):
         except:
             UserProfile.objects.create(user=instance)
             print("Userprofile was not found so created.")
-    
+
 
 class Attendance(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'role__in': ['STAFF', 'DRIVER']})
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        limit_choices_to={"role__in": ["STAFF", "DRIVER"]},
+    )
     check_in = models.DateTimeField(default=timezone.now)
     check_out = models.DateTimeField(null=True, blank=True)
     hours_worked = models.FloatField(default=0, editable=False)
-    is_present = models.BooleanField(default=False) 
+    is_present = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = ('user', 'check_in')
+        unique_together = ("user", "check_in")
 
     def calculate_hours_worked(self):
         """Automatically calculates the number of hours worked between check-in and check-out."""
@@ -144,19 +149,19 @@ class Attendance(models.Model):
     def __str__(self):
         return f"{self.user.full_name} - {self.check_in.date()}"
 
-    
-
 
 class SalaryRecord(models.Model):
-    DRIVER = 'DRIVER'
-    STAFF = 'STAFF'
+    DRIVER = "DRIVER"
+    STAFF = "STAFF"
 
     ROLE_CHOICES = [
-        (DRIVER, 'Driver'),
-        (STAFF, 'Staff'),
+        (DRIVER, "Driver"),
+        (STAFF, "Staff"),
     ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'role__in': [DRIVER, STAFF]})
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, limit_choices_to={"role__in": [DRIVER, STAFF]}
+    )
     month = models.DateField(default=timezone.now)
     base_salary = models.DecimalField(max_digits=10, decimal_places=2)
     extra_hours = models.FloatField(default=0)
@@ -166,11 +171,11 @@ class SalaryRecord(models.Model):
 
     def calculate_salary(self):
         """Calculate total salary based on base salary and extra payment."""
-        hourly_rate = Decimal('10.00')  # Ensure hourly_rate is a Decimal
+        hourly_rate = Decimal("10.00")  # Ensure hourly_rate is a Decimal
         if self.user.role == self.DRIVER:
-            hourly_rate = Decimal('10.00')  # Example rate for DRIVER
+            hourly_rate = Decimal("10.00")  # Example rate for DRIVER
         elif self.user.role == self.STAFF:
-            hourly_rate = Decimal('8.00')  # Example rate for STAFF
+            hourly_rate = Decimal("8.00")  # Example rate for STAFF
 
         # Calculate extra payment as a Decimal
         self.extra_payment = Decimal(self.extra_hours) * hourly_rate
