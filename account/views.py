@@ -129,29 +129,7 @@ def logout(request):
 @login_required
 @user_passes_test(check_role_admin)  # Replace with your admin role check
 def admin_dashboard(request):
-    today = timezone.now().date()
-
-    # Stats for the dashboard
-    total_deliveries = Delivery.objects.count()
-    total_jars_in = JarInOut.objects.aggregate(total_in=Sum("jar_in"))["total_in"] or 0
-    total_jars_out = (
-        JarInOut.objects.aggregate(total_out=Sum("jar_out"))["total_out"] or 0
-    )
-    total_expenses = MonthlyExpense.objects.aggregate(total=Sum("amount"))["total"] or 0
-
-    # Recent deliveries (latest 10)
-    recent_deliveries = Delivery.objects.select_related("customer", "driver").order_by(
-        "-date"
-    )[:10]
-
-    context = {
-        "total_deliveries": total_deliveries,
-        "total_jars_in": total_jars_in,
-        "total_jars_out": total_jars_out,
-        "total_expenses": total_expenses,
-        "deliveries": recent_deliveries,
-    }
-    return render(request, "account/admin_dashboard.html", context)
+    return render(request, "account/admin_dashboard.html")
 
 
 @login_required

@@ -18,8 +18,15 @@
                     </form>
                 </div>
 
+                <!-- Totals Summary -->
+                <div class="mb-4">
+                    <p><strong>Total Jars Delivered:</strong> {{ total_jars }}</p>
+                    <p><strong>Total Amount Received:</strong> {{ total_received }}</p>
+                    <p><strong>Total Due Amount:</strong> <span class="{% if total_due > 0 %}text-danger{% else %}text-success{% endif %}">{{ total_due }}</span></p>
+                </div>
+
                 <!-- Table with drivers' summary -->
-                <table id="basic-datatable" class="table table-striped dt-responsive nowrap">
+                <table id="summary-table" class="table table-striped dt-responsive nowrap">
                     <thead>
                         <tr>
                             <th>Driver Name</th>
@@ -53,7 +60,7 @@
 <!-- DataTables JS for adding print and Excel functionality -->
 <script>
     $(document).ready(function () {
-        $('#basic-datatable').DataTable({
+        $('#summary-table').DataTable({
             responsive: true,
             dom: 'Bfrtip',
             buttons: [
@@ -61,17 +68,28 @@
                     extend: 'print',
                     text: 'Print',
                     customize: function (win) {
-                        $(win.document.body).append(
+                        $(win.document.body).prepend(
+                            '<h2 class="text-center">Monthly Summary</h2>' +
                             '<div class="totals mt-4">' +
                                 '<p><strong>Total Jars Delivered: </strong>{{ total_jars }}</p>' +
                                 '<p><strong>Total Amount Received: </strong>{{ total_received }}</p>' +
                                 '<p><strong>Total Due Amount: </strong>{{ total_due }}</p>' +
                             '</div>'
                         );
-                    }
+                    },
+                    className: 'btn btn-info'
                 },
-                'excel' // Add Excel download button
-            ]
+                {
+                    extend: 'excel',
+                    text: 'Export to Excel',
+                    className: 'btn btn-success'
+                }
+            ],
+            language: {
+                search: "Search:",
+                lengthMenu: "Show _MENU_ entries",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+            }
         });
     });
 </script>
