@@ -42,10 +42,12 @@ from .forms import (
 )
 from .models import Bill, Customer, Delivery, Filler, FillerLedger, JarCap, JarInOut
 from datetime import datetime, timedelta
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, F, DecimalField
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from datetime import date
+
+from django.db import models
 
 from .models import MonthlyExpense
 
@@ -69,12 +71,18 @@ def delivery(request):
             else filter_date.replace(year=filter_date.year + 1, month=1, day=1)
         ) - timedelta(days=1)
 
-    driver = request.user
+    user = request.user
 
-    # Query for all deliveries made by the driver in the selected month
-    deliveries = Delivery.objects.filter(
-        trip__driver=driver, trip__date__range=(current_month_start, current_month_end)
-    )
+    # Query deliveries based on the user's role
+    if user.role == User.DRIVER:
+        deliveries = Delivery.objects.filter(
+            trip__driver=user,
+            trip__date__range=(current_month_start, current_month_end),
+        )
+    else:
+        deliveries = Delivery.objects.filter(
+            trip__date__range=(current_month_start, current_month_end)
+        )
 
     # Aggregate data grouped by date
     delivery_summary = (
@@ -95,9 +103,9 @@ def delivery(request):
         "current_month_start": current_month_start,
         "current_month_end": current_month_end,
         "today": today,
-        "driver": driver,
+        "user": user,
     }
-
+    print(context)
     return render(request, "plant/delivery.html", context)
 
 
@@ -298,42 +306,54 @@ from django.utils.timezone import now
 
 
 def monthly_summary(request):
-    # Filter month from request
+    # Get filter month from request or default to the current month
     filter_month = request.GET.get("month", now().strftime("%Y-%m"))
     year, month = map(int, filter_month.split("-"))
 
     drivers = User.objects.filter(role="DRIVER")
     summary_data = []
 
+    # Initialize totals
     total_jars = total_received = total_due = 0
 
     for driver in drivers:
         # Total jars delivered by the driver
         total_jars_driver = (
             Delivery.objects.filter(
-                driver=driver, date__year=year, date__month=month
-            ).aggregate(total=Sum("quantity"))["total"]
+                trip__driver=driver, trip__date__year=year, trip__date__month=month
+            ).aggregate(total=Sum("total_jars"))["total"]
             or 0
         )
 
-        # Total amount collected by the driver (assuming "amount_received" is captured in MonthlyExpense for DAILY_EXPENSE type)
+        # Total amount collected by the driver (based on DeliveryCustomer records)
         amount_received = (
-            MonthlyExpense.objects.filter(
-                expense_type=MonthlyExpense.DAILY_EXPENSE,
-                date__year=year,
-                date__month=month,
-                remarks__icontains=driver.full_name,  # Assuming remarks include driver's name
-            ).aggregate(total=Sum("amount"))["total"]
+            DeliveryCustomer.objects.filter(
+                delivery__trip__driver=driver,
+                delivery__trip__date__year=year,
+                delivery__trip__date__month=month,
+            ).aggregate(total=Sum("total_price"))["total"]
             or 0
         )
 
-        # Total amount (assuming 1 jar = 40)
-        total_amount = total_jars_driver * 40
+        # Calculate total amount
+        total_amount = (
+            DeliveryCustomer.objects.filter(
+                delivery__trip__driver=driver,
+                delivery__trip__date__year=year,
+                delivery__trip__date__month=month,
+            )
+            .annotate(calculated_price=F("quantity") * F("price_per_jar"))
+            .aggregate(total=Sum("calculated_price", output_field=DecimalField()))[
+                "total"
+            ]
+            or total_jars_driver
+            * 40  # Default to 40 per jar if no specific price is provided
+        )
 
-        # Due amount
+        # Calculate due amount
         due_amount = total_amount - amount_received
 
-        # Add to summary
+        # Add data to summary
         summary_data.append(
             {
                 "name": driver.full_name,
@@ -344,11 +364,12 @@ def monthly_summary(request):
             }
         )
 
-        # Update overall totals
+        # Update totals
         total_jars += total_jars_driver
         total_received += amount_received
         total_due += due_amount
 
+    # Render the summary template with context
     return render(
         request,
         "expenses/monthly_summary.html",
