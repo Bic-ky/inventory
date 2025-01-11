@@ -8,12 +8,19 @@ from django.dispatch import receiver
 
 
 class UserManager(BaseUserManager):
-    def create_user(self, phone_number, password=None, role=None):
+    def create_user(self, phone_number, password, role=None):
         if not phone_number:
             raise ValueError("The Phone Number field must be set")
 
         user = self.model(phone_number=phone_number, role=role)
-        user.set_password(password)
+        if password:
+            # Hash the password using set_password
+            user.set_password(password)
+            print(
+                f"Password after hashing: {user.password}"
+            )  # Debug: Verify password is hashed
+        else:
+            raise ValueError("Password must be provided")
         user.save(using=self._db)
         return user
 
@@ -21,7 +28,7 @@ class UserManager(BaseUserManager):
         # Create and save a new superuser with the given phone number and password
         user = self.create_user(phone_number, password, role=User.ADMIN)
         user.is_admin = True
-        user.is_staff = True
+        user.is_staff = False
         user.is_superuser = True
         user.save(using=self._db)
         return user

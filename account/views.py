@@ -24,6 +24,7 @@ from django.db.models import Sum
 
 from django.utils.timezone import is_naive, make_aware
 from django.utils import timezone
+from datetime import timedelta
 
 
 def check_role_admin(user):
@@ -197,21 +198,29 @@ def driver_dashboard(request):
 def attendance(request):
     # Get today's date
     today = timezone.now().date()
+    current_month_start = today.replace(day=1)
+    current_month_end = (
+        today.replace(month=today.month % 12 + 1, day=1)
+        if today.month < 12
+        else today.replace(year=today.year + 1, month=1, day=1)
+    ) - timedelta(days=1)
 
-    # Get the filter date from request or default to today
-    filter_date_str = request.GET.get("date", today.strftime("%Y-%m-%d"))
-    try:
-        filter_date = datetime.strptime(filter_date_str, "%Y-%m-%d").date()
-    except ValueError:
-        filter_date = today
+    # Get the filter month from request or default to the current month
+    filter_month_str = request.GET.get("month", today.strftime("%Y-%m"))
+    if filter_month_str:
+        filter_month_date = datetime.strptime(filter_month_str, "%Y-%m").date()
+        current_month_start = filter_month_date.replace(day=1)
+        current_month_end = (
+            filter_month_date.replace(month=filter_month_date.month % 12 + 1, day=1)
+            if filter_month_date.month < 12
+            else filter_month_date.replace(
+                year=filter_month_date.year + 1, month=1, day=1
+            )
+        ) - timedelta(days=1)
 
-    # Ensure the filter date range covers the entire day
-    start_of_day = make_aware(datetime.combine(filter_date, datetime.min.time()))
-    end_of_day = make_aware(datetime.combine(filter_date, datetime.max.time()))
-
-    # Query attendance records within the filtered date
+    # Query attendance records within the filtered month
     attendance_records = Attendance.objects.filter(
-        check_in__range=(start_of_day, end_of_day)
+        check_in__date__range=(current_month_start, current_month_end)
     )
 
     # Aggregate total hours worked
@@ -221,9 +230,10 @@ def attendance(request):
 
     context = {
         "attendance_records": attendance_records,
-        "filter_date": filter_date,
+        "filter_month": filter_month_str,
         "total_hours_worked": round(total_hours_worked, 2),
         "today": today,
+        "current_month_start": current_month_start,
     }
 
     return render(request, "account/attendance.html", context)
