@@ -9,17 +9,19 @@
         <h4>{% if is_edit %}Edit Attendance{% else %}Add Attendance{% endif %}</h4>
         <form method="post">
             {% csrf_token %}
-            <div class="form-group">
-                <label for="id_user">User</label>
-                {{ form.user }}
-            </div>
-            <div class="form-group">
-                <label for="id_check_in">Check In</label>
-                {{ form.check_in }}
-            </div>
-            <div class="form-group">
-                <label for="id_check_out">Check Out</label>
-                {{ form.check_out }}
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="id_check_in">Check In</label>
+                        {{ form.check_in }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="id_check_out">Check Out</label>
+                        {{ form.check_out }}
+                    </div>
+                </div>
             </div>
             <button type="submit" class="btn btn-primary">
                 {% if is_edit %}Update{% else %}Submit{% endif %}

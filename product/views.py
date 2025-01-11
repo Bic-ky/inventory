@@ -1,55 +1,40 @@
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import JsonResponse
+from django.db.models import Sum, Count, F, DecimalField
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+
+from datetime import datetime, timedelta, date
 
 import json
 
-from account.models import Attendance, User
 from .forms import (
     BillForm,
     DecreaseJarCapForm,
-    DeliveryForm,
-    IncreaseJarCapForm,
-    JarCapForm,
-    JarInOutForm,
-    MonthlyExpenseForm,
     DeliveryForm,
     DeliveryCustomerFormSet,
-)
-from .models import (
-    Bill,
-    Customer,
-    Delivery,
-    Filler,
-    JarCap,
-    JarInOut,
-    Trip,
-    DeliveryCustomer,
-)
-from .forms import (
-    BillForm,
-    DecreaseJarCapForm,
-    DeliveryForm,
     FillerLedgerForm,
     IncreaseJarCapForm,
     JarCapForm,
     JarInOutForm,
     MonthlyExpenseForm,
 )
-from .models import Bill, Customer, Delivery, Filler, FillerLedger, JarCap, JarInOut
-from datetime import datetime, timedelta
-from django.db.models import Sum, Count, F, DecimalField
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from datetime import date
 
-from django.db import models
-
-from .models import MonthlyExpense
+from account.models import User
+from product.models import (
+    Bill,
+    Customer,
+    Delivery,
+    Filler,
+    JarCap,
+    JarInOut,
+    MonthlyExpense,
+    Trip,
+    DeliveryCustomer,
+)
 
 
 def delivery(request):

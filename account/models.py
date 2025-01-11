@@ -12,11 +12,13 @@ class UserManager(BaseUserManager):
         if not phone_number:
             raise ValueError("The Phone Number field must be set")
 
-        user = self.model(phone_number=phone_number , role=role)
+        user = self.model(phone_number=phone_number, role=role)
         if password:
             # Hash the password using set_password
             user.set_password(password)
-            print(f"Password after hashing: {user.password}")  # Debug: Verify password is hashed
+            print(
+                f"Password after hashing: {user.password}"
+            )  # Debug: Verify password is hashed
         else:
             raise ValueError("Password must be provided")
         user.save(using=self._db)

@@ -9,21 +9,23 @@
 
                 <!-- Date filter form -->
                 <form method="GET" id="date-filter-form" class="form-inline float-right">
-                    <label for="filter-date" class="mr-2 font-weight-bold">Select Date:</label>
-                    <input type="date" id="filter-date" name="date" class="form-control mr-2" 
-                           max="{{ today|date:'Y-m-d' }}" value="{{ filter_date|date:'Y-m-d' }}">
+                    <label for="filter-date" class="mr-2 font-weight-bold">Select Month:</label>
+                    <input type="month" id="filter-date" name="month" class="form-control mr-2" value="{{ current_month_start|date:'Y-m' }}">
                     <button type="submit" class="btn btn-primary">Filter</button>
                 </form>
                 <!-- Attendance Table -->
                 <h4>Attendance Records</h4>
-                <table id="datatable-buttons" class="table table-striped dt-responsive nowrap">
+                <table id="datatable-buttons" class="table table-striped dt-responsive nowrap" 
+                    data-driver="{{ request.user.full_name }}"
+                    data-month="{{ current_month_start|date:'F Y' }}">
                     <thead>
                         <tr>
                             <th>Name</th>
+                            <th>Date</th>
                             <th>Check-in</th>
                             <th>Check-out</th>
                             <th>Hours Worked</th>
-                            <th>Status</th> 
+                            <th>Status</th>
                         </tr>
                     </thead>
                 
@@ -31,14 +33,19 @@
                         {% for record in attendance_records %}
                         <tr>
                             <td>{{ record.user.full_name }}</td>
-                            <!-- Use the `time` filter to display time in 12-hour format with AM/PM -->
+                            <td>
+                                {% if record.check_in %}
+                                    {{ record.check_in|date:"Y-m-d" }}
+                                {% else %}
+                                    --
+                                {% endif %}
+                            </td>
                             <td>{{ record.check_in|time:"h:i A" }}</td>
                             <td>
-                                <!-- Handle case where check_out might be null -->
                                 {% if record.check_out %}
                                     {{ record.check_out|time:"h:i A" }}
                                 {% else %}
-                                    Not Checked Out
+                                    Not Checked 
                                 {% endif %}
                             </td>
                             <td>{{ record.hours_worked }}</td>
@@ -52,28 +59,78 @@
                         </tr>
                         {% endfor %}
                     </tbody>
-                    
-                    
-                    
-                    
-                    
                 </table>
-                
-                
-            </div> <!-- end card body-->
-        </div> <!-- end card -->
-    </div><!-- end col-->
+            </div>
+        </div>
+    </div>
 </div>
-<!-- end row-->
 
-<!-- DataTables JS for adding print and excel functionality -->
+<!-- DataTables JS for adding print, PDF, and Excel functionality -->
 <script>
     $(document).ready(function () {
+        const driverName = $('#datatable-buttons').data('driver');
+        const monthYear = $('#datatable-buttons').data('month');
+
         $('#datatable-buttons').DataTable({
             responsive: true,
             dom: 'Bfrtip',
             buttons: [
-                'copy', 'csv', 'excel', 'pdf', 'print'
+                {
+                    extend: 'print',
+                    text: 'Print',
+                    customize: function (win) {
+                        $(win.document.body).css('font-size', '14px');
+                        $(win.document.body).css('margin', '20px'); /* Add margin for all sides */
+                        $(win.document.body).prepend(`
+                            <h1 style="text-align: center;">Sarvashree</h1>
+                            <h3 style="text-align: center;">Attendance of Month - ${monthYear}</h3>
+                            <h4 style="text-align: center;">Driver Name: ${driverName}</h4>
+                            <br>
+                        `);
+                        $(win.document.body).find('table').css('width', '100%');
+                        $(win.document.body).find('table').css('border-collapse', 'collapse');
+                        $(win.document.body).find('table th, table td').css('padding', '8px');
+                        $(win.document.body).find('table th, table td').css('border', '1px solid #ddd');
+                    }
+                },
+                {
+                    extend: 'excelHtml5',
+                    text: 'Download as Excel',
+                    filename: function () {
+                        return `Attendance_of_${driverName}_${monthYear.replace(' ', '_')}`;
+                    },
+                    title: function () {
+                        return `Attendance of - ${driverName} - ${monthYear}`;
+                    }
+                },
+                {
+                    extend: 'pdfHtml5',
+                    text: 'Download as PDF',
+                    filename: `Attendance_of_${driverName}_${monthYear.replace(' ', '_')}`,
+                    customize: function (doc) {
+                        doc.content.unshift(
+                            {
+                                text: 'Sarvashree',
+                                fontSize: 18,
+                                alignment: 'center',
+                                margin: [0, 0, 0, 5],
+                            },
+                            {
+                                text: `Attendance of Month - ${monthYear}`,
+                                fontSize: 14,
+                                alignment: 'center',
+                                margin: [0, 0, 0, 5],
+                            },
+                            {
+                                text: `Driver Name: ${driverName}`,
+                                fontSize: 12,
+                                alignment: 'center',
+                                margin: [0, 0, 0, 15],
+                            }
+                        );
+                        doc.styles.tableHeader.alignment = 'center';
+                    }
+                }
             ]
         });
     });
