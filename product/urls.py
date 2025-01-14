@@ -29,6 +29,6 @@ urlpatterns =[
 
     path('fillers/', views.filler_list, name='filler_list'),
     path('fillers/<int:pk>/', views.filler_detail, name='filler_detail'),
-     path('ledger/add/', views.add_ledger_entry, name='add_ledger_entry'),
+    path('filler_ledger_detail/<int:filler_id>/', views.filler_ledger_detail, name='filler_ledger_detail'),
 
 ]
