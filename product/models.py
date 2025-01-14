@@ -1,75 +1,120 @@
-from datetime import datetime, timezone
 from django.db import models
+
 from decimal import Decimal
+from datetime import datetime
 
 from account.models import User
 
 
-class Trip(models.Model):
-    driver = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="trips",
-        limit_choices_to={"role": "DRIVER"},  # Ensures only drivers can be linked
-    )
-    date = models.DateField(auto_now_add=True)
-    trip_number = models.PositiveIntegerField()  # Trip number in the day (1, 2, ...)
-
-    class Meta:
-        unique_together = (
-            "driver",
-            "date",
-            "trip_number",
-        )  # Prevent duplicate trips for the same driver on the same day.
-
-    def __str__(self):
-        return f"Trip {self.trip_number} by {self.driver.full_name} on {self.date}"
-
-
-class Customer(models.Model):
-    CUSTOMER_TYPE_CHOICES = [
-        ("monthly", "Monthly Base"),
-        ("in_hand", "In-Hand"),
-    ]
-    name = models.CharField(max_length=100)
+# Customer Information (all are monthly customers)
+class MonthlyCustomer(models.Model):
+    name = models.CharField(max_length=255, unique=True)
     address = models.TextField(blank=True, null=True)
-    contact_number = models.CharField(max_length=15, blank=True, null=True)
-    customer_type = models.CharField(max_length=10, choices=CUSTOMER_TYPE_CHOICES)
 
     def __str__(self):
-        return f"{self.name} ({self.customer_type})"
+        return self.name
 
 
+# Product Information (e.g., Normal Jar, Premium Bottle)
+class WaterProduct(models.Model):
+    WATER_TYPE = [
+        ("JAR", "Jar"),
+        ("BOTTLE", "Bottle"),
+    ]
+
+    QUALITY_TYPE = [
+        ("NORMAL", "Normal"),
+        ("PREMIUM", "Premium"),
+    ]
+
+    name = models.CharField(max_length=255, unique=True)
+    water_type = models.CharField(max_length=100, choices=WATER_TYPE)
+    quality = models.CharField(max_length=100, choices=QUALITY_TYPE)
+
+    def __str__(self):
+        return f"{self.quality.capitalize()} {self.water_type.capitalize()}"
+
+
+# Price Mapping for Each Customer and WaterProduct
+class Price(models.Model):
+    monthly_customer = models.ForeignKey(
+        MonthlyCustomer, on_delete=models.CASCADE, related_name="prices"
+    )
+    water_product = models.ForeignKey(
+        WaterProduct, on_delete=models.CASCADE, related_name="prices"
+    )
+    price_per_unit = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.monthly_customer.name} - {self.water_product.name} @ {self.price_per_unit}"
+
+
+# Delivery Records
 class Delivery(models.Model):
-    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name="deliveries")
-    total_jars = models.PositiveIntegerField()  # Total jars carried for the delivery
-    returned_count = models.PositiveIntegerField(default=0)
-    leak_count = models.PositiveIntegerField(default=0)
-    half_caps_count = models.PositiveIntegerField(default=0)
-
-    def __str__(self):
-        return f"Delivery for Trip {self.trip}"
-
-
-class DeliveryCustomer(models.Model):
-    delivery = models.ForeignKey(
-        Delivery, on_delete=models.CASCADE, related_name="customer_deliveries"
+    driver = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="deliveries"
     )
-    customer = models.ForeignKey(
-        Customer, on_delete=models.CASCADE, related_name="deliveries"
-    )
-    quantity = models.PositiveIntegerField()  # Jars delivered to this customer
-    price_per_jar = models.DecimalField(max_digits=10, decimal_places=2)
-    total_price = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
+    delivery_date = models.DateField(auto_now_add=True)
 
-    def save(self, *args, **kwargs):
-        self.total_price = self.quantity * self.price_per_jar
-        super().save(*args, **kwargs)
+    # Pickup quantities for each product type
+    total_normal_jars = models.PositiveIntegerField(default=0)
+    total_premium_jars = models.PositiveIntegerField(default=0)
+    total_normal_bottles = models.PositiveIntegerField(default=0)
+    total_premium_bottles = models.PositiveIntegerField(default=0)
 
-    def __str__(self):
+    def total_water_picked(self):
         return (
-            f"{self.quantity} jars to {self.customer.name} in Delivery {self.delivery}"
+            self.total_normal_jars
+            + self.total_premium_jars
+            + self.total_normal_bottles
+            + self.total_premium_bottles
         )
+
+    def total_water_accounted_for(self):
+        delivered = sum(detail.quantity for detail in self.details.all())
+        reported = sum(
+            report.leaks + report.returns + report.half_caps
+            for report in self.reports.all()
+        )
+        return delivered + reported
+
+    def is_delivery_complete(self):
+        return self.total_water_picked() == self.total_water_accounted_for()
+
+    def __str__(self):
+        return f"Delivery by {self.driver.name} on {self.delivery_date}"
+
+
+# Delivery Details (WaterProduct Delivery to MonthlyCustomers)
+class DeliveryDetail(models.Model):
+    delivery = models.ForeignKey(
+        Delivery, on_delete=models.CASCADE, related_name="details"
+    )
+    water_product = models.ForeignKey(WaterProduct, on_delete=models.CASCADE)
+    monthly_customer = models.ForeignKey(MonthlyCustomer, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    price_per_unit = models.DecimalField(max_digits=10, decimal_places=2)
+
+    @property
+    def total_price(self):
+        return self.quantity * self.price_per_unit
+
+    def __str__(self):
+        return f"{self.water_product.name} to {self.monthly_customer.name} - {self.quantity}"
+
+
+# Report Discrepancies (Leaks, Returns, Half Caps)
+class Report(models.Model):
+    delivery = models.ForeignKey(
+        Delivery, on_delete=models.CASCADE, related_name="reports"
+    )
+    water_product = models.ForeignKey(WaterProduct, on_delete=models.CASCADE)
+    leaks = models.PositiveIntegerField(default=0)
+    returns = models.PositiveIntegerField(default=0)
+    half_caps = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"Report for {self.water_product.name} in Delivery {self.delivery.id}"
 
 
 # Vehicle model
@@ -106,56 +151,6 @@ class Driver(models.Model):
         return self.user.full_name
 
 
-# class Delivery(models.Model):
-#     date = models.DateField(auto_now_add=True)
-#     driver = models.ForeignKey(
-#         User, on_delete=models.SET_NULL, null=True, limit_choices_to={"role": "DRIVER"}
-#     )
-#     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-#     quantity = models.IntegerField(help_text="Number of jars delivered or returned")
-#     jar_type = models.CharField(
-#         max_length=1, choices=[("P", "Premium"), ("N", "Normal")], null=True, blank=True
-#     )
-#     sold_new_jars = models.IntegerField(
-#         default=0, help_text="Number of new jars sold during delivery"
-#     )
-#     jar_price_at_delivery = models.DecimalField(
-#         max_digits=6,
-#         decimal_places=2,
-#         default=0.0,
-#         help_text="Price of each jar sold during this delivery",
-#     )
-
-#     delivered_count = models.IntegerField(
-#         default=0, help_text="Number of jars successfully delivered"
-#     )
-#     returned_count = models.IntegerField(
-#         default=0, help_text="Number of jars returned by the customer"
-#     )
-#     leak_count = models.IntegerField(
-#         default=0, help_text="Number of jars found leaking"
-#     )
-#     half_caps_count = models.IntegerField(
-#         default=0, help_text="Number of jars with half caps issues"
-#     )
-
-#     def __str__(self):
-#         return f"{self.quantity} jars - to {self.customer.name}"
-
-#     def total_cost(self):
-#         """Calculate the total cost for the delivery including sold jars."""
-#         regular_delivery_cost = self.quantity * 40
-#         new_jar_cost = self.sold_new_jars * (300 + 40)
-#         total_cost = regular_delivery_cost + new_jar_cost
-#         return total_cost
-
-#     def calculate_bill(self):
-#         """Calculate the total cost for this delivery."""
-#         regular_delivery_cost = Decimal(self.quantity * 40)
-#         new_jar_cost = Decimal(self.sold_new_jars * (300 + 40))
-#         return regular_delivery_cost + new_jar_cost
-
-
 class Jar(models.Model):
     jar_type = models.CharField(
         max_length=1, choices=[("P", "Premium"), ("N", "Normal")], default="Normal"
@@ -171,6 +166,7 @@ class Jar(models.Model):
 
     def __str__(self):
         return f"{self.total_jars} total jars ({self.get_jar_type_display()})"
+
 
 class Bill(models.Model):
     """
@@ -266,10 +262,15 @@ class Filler(models.Model):
     def __str__(self):
         return self.contact_person
 
+
 class JarInOut(models.Model):
     created_at = models.DateTimeField(default=datetime.now)
-    jar_in = models.PositiveIntegerField(default=0, help_text="Number of jars coming in.")
-    jar_out = models.PositiveIntegerField(editable=False, default=0, help_text="Number of jars going out (calculated).")
+    jar_in = models.PositiveIntegerField(
+        default=0, help_text="Number of jars coming in."
+    )
+    jar_out = models.PositiveIntegerField(
+        editable=False, default=0, help_text="Number of jars going out (calculated)."
+    )
     fillers = models.ForeignKey(
         "Filler",
         on_delete=models.SET_NULL,
@@ -277,10 +278,18 @@ class JarInOut(models.Model):
         blank=True,
         help_text="Contact person filling the jars.",
     )
-    leak = models.PositiveIntegerField(default=0, help_text="Number of jars with leaks.")
-    half_cap = models.PositiveIntegerField(default=0, help_text="Number of jars with half caps.")
-    return_jar = models.PositiveIntegerField(default=0, help_text="Number of jars returned.")
-    notes = models.TextField(blank=True, null=True, help_text="Additional info about this record.")
+    leak = models.PositiveIntegerField(
+        default=0, help_text="Number of jars with leaks."
+    )
+    half_cap = models.PositiveIntegerField(
+        default=0, help_text="Number of jars with half caps."
+    )
+    return_jar = models.PositiveIntegerField(
+        default=0, help_text="Number of jars returned."
+    )
+    notes = models.TextField(
+        blank=True, null=True, help_text="Additional info about this record."
+    )
 
     receivable_amount = models.DecimalField(
         max_digits=10,
@@ -310,12 +319,16 @@ class JarInOut(models.Model):
         current_due = self.receivable_amount - self.received_amount
 
         # Fetch the cumulative due amount from previous records
-        previous_due = (
-            JarInOut.objects.filter(fillers=self.fillers)
-            .exclude(id=self.id)  # Exclude the current record
-            .order_by("created_at")  # Ensure correct chronological order
-            .aggregate(total_due=models.Sum("due_amount"))["total_due"]
-            or Decimal("0.00")
+        previous_due = JarInOut.objects.filter(fillers=self.fillers).exclude(
+            id=self.id
+        ).order_by(  # Exclude the current record
+            "created_at"
+        ).aggregate(  # Ensure correct chronological order
+            total_due=models.Sum("due_amount")
+        )[
+            "total_due"
+        ] or Decimal(
+            "0.00"
         )
 
         # Cumulative due = previous cumulative + current due
@@ -373,8 +386,6 @@ class FillerLedger(models.Model):
 
     def __str__(self):
         return f"{self.filler.contact_person} - {self.date.strftime('%Y-%m-%d')}"
-
-
 
 
 class CreditMarket(models.Model):
