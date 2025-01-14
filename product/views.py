@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -9,7 +10,12 @@ from django.contrib.auth.decorators import login_required
 
 from datetime import datetime, timedelta, date
 
+from django.utils.timezone import now
+from django.db.models import Prefetch
+
 import json
+
+from product import models
 
 from .forms import (
     BillForm,
@@ -29,6 +35,7 @@ from product.models import (
     Customer,
     Delivery,
     Filler,
+    FillerLedger,
     JarCap,
     JarInOut,
     MonthlyExpense,
@@ -287,8 +294,6 @@ def add_expense(request):
     return render(request, "expenses/add_expense.html", {"form": form})
 
 
-from django.utils.timezone import now
-
 
 def monthly_summary(request):
     # Get filter month from request or default to the current month
@@ -371,10 +376,36 @@ def monthly_summary(request):
 
 def jar_in_out_list(request):
     """
-    Shows a list of all JarInOut records, sorted newest first.
+    Shows a grouped list of all JarInOut records, organized by Filler with date filter.
     """
-    records = JarInOut.objects.order_by("-created_at")
-    return render(request, "records/jar_in_out_list.html", {"records": records})
+    # Get date filter parameters
+    start_date = request.GET.get("start_date")
+    end_date = request.GET.get("end_date")
+
+    # Base queryset
+    jar_in_out_queryset = JarInOut.objects.order_by("-created_at")
+
+    # Apply date filter if provided
+    if start_date:
+        jar_in_out_queryset = jar_in_out_queryset.filter(created_at__date__gte=start_date)
+    if end_date:
+        jar_in_out_queryset = jar_in_out_queryset.filter(created_at__date__lte=end_date)
+
+    # Prefetch only the most recent 5 records per filler
+    jar_in_out_prefetch = Prefetch(
+        "jarinout_set",
+        queryset=jar_in_out_queryset,
+        to_attr="recent_records"  # Store the prefetched queryset as a custom attribute
+    )
+
+    fillers = Filler.objects.prefetch_related(jar_in_out_prefetch).order_by("contact_person")
+
+    context = {
+        "fillers": fillers,
+        "start_date": start_date,
+        "end_date": end_date,
+    }
+    return render(request, "records/jar_in_out_list.html", context)
 
 
 def jar_in_out_create(request):
@@ -393,6 +424,34 @@ def jar_in_out_create(request):
     context = {"form": form}
     return render(request, "records/jar_in_out_create.html", context)
 
+
+def filler_ledger_detail(request, filler_id):
+    """Display financial details and ledger records for a specific filler."""
+    filler = get_object_or_404(Filler, pk=filler_id)
+    ledger_records = FillerLedger.objects.filter(filler=filler).order_by("date")
+
+    # Initialize cumulative balance
+    cumulative_balance_due = Decimal("0.00")
+    for record in ledger_records:
+        # Calculate cumulative balance
+        cumulative_balance_due += record.jar_in_out.receivable_amount
+        cumulative_balance_due -= record.amount_received
+        # Update record's balance due
+        record.balance_due = cumulative_balance_due
+
+    # Calculate cumulative totals
+    total_receivable = ledger_records.aggregate(total=Sum('jar_in_out__receivable_amount'))['total'] or Decimal("0.00")
+    total_received = ledger_records.aggregate(total=Sum('amount_received'))['total'] or Decimal("0.00")
+    total_balance_due = cumulative_balance_due
+
+    context = {
+        'filler': filler,
+        'ledger_records': ledger_records,
+        'total_receivable': total_receivable,
+        'total_received': total_received,
+        'total_balance_due': total_balance_due,
+    }
+    return render(request, 'records/filler_ledger_detail.html', context)
 
 def get_filler_vehicle(request, filler_id):
     try:
@@ -506,17 +565,6 @@ def filler_list(request):
     fillers = Filler.objects.all()
     return render(request, "filler/filler_list.html", {"fillers": fillers})
 
-
-def add_ledger_entry(request):
-    """Add a new ledger entry for a filler."""
-    if request.method == "POST":
-        form = FillerLedgerForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect("filler_list")  # Redirect to filler list or relevant page
-    else:
-        form = FillerLedgerForm()
-    return render(request, "filler/add_ledger_entry.html", {"form": form})
 
 
 def filler_detail(request, pk):

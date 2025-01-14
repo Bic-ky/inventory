@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2 class="mt-3">Ledger for {{ filler.contact_person }}</h2>
+<p><strong>Contact Number:</strong> {{ filler.number }}</p>
+<p><strong>Vehicle Number:</strong> {{ filler.vehicle_number }}</p>
+
+<hr>
+<h4>Financial Summary</h4>
+<p><strong>Total Receivable Amount:</strong> {{ total_receivable }}</p>
+<p><strong>Total Received Amount:</strong> {{ total_received }}</p>
+<p><strong>Total Balance Due:</strong> {{ total_balance_due }}</p>
+
+<hr>
+<h4>Ledger Records</h4>
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Receivable Amount</th>
+            <th>Received Amount</th>
+            <th>Balance Due</th>
+            <th>Remarks</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for record in ledger_records %}
+        <tr>
+            <td>{{ record.date|date:"Y-m-d H:i" }}</td>
+            <td>{{ record.jar_in_out.receivable_amount }}</td>
+            <td>{{ record.amount_received }}</td>
+            <td>{{ record.balance_due }}</td>
+            <td>{{ record.remarks }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5">No Ledger Records Found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+
+<a href="{% url 'jar_in_out_list' %}" class="btn btn-secondary mt-3">Back to Records</a>
+
+{% endblock content %}

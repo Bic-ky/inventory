@@ -172,11 +172,6 @@ class Jar(models.Model):
     def __str__(self):
         return f"{self.total_jars} total jars ({self.get_jar_type_display()})"
 
-
-from django.db import models
-from decimal import Decimal
-
-
 class Bill(models.Model):
     """
     One Bill per Delivery.
@@ -271,16 +266,10 @@ class Filler(models.Model):
     def __str__(self):
         return self.contact_person
 
-
 class JarInOut(models.Model):
     created_at = models.DateTimeField(default=datetime.now)
-
-    jar_in = models.PositiveIntegerField(
-        default=0, help_text="Number of jars coming in."
-    )
-    jar_out = models.PositiveIntegerField(
-        default=0, help_text="Number of jars going out."
-    )
+    jar_in = models.PositiveIntegerField(default=0, help_text="Number of jars coming in.")
+    jar_out = models.PositiveIntegerField(editable=False, default=0, help_text="Number of jars going out (calculated).")
     fillers = models.ForeignKey(
         "Filler",
         on_delete=models.SET_NULL,
@@ -288,75 +277,61 @@ class JarInOut(models.Model):
         blank=True,
         help_text="Contact person filling the jars.",
     )
-    vehicle_number = models.CharField(
-        max_length=20,
-        blank=True,
-        null=True,
-        help_text="Vehicle number used for transportation.",
+    leak = models.PositiveIntegerField(default=0, help_text="Number of jars with leaks.")
+    half_cap = models.PositiveIntegerField(default=0, help_text="Number of jars with half caps.")
+    return_jar = models.PositiveIntegerField(default=0, help_text="Number of jars returned.")
+    notes = models.TextField(blank=True, null=True, help_text="Additional info about this record.")
+
+    receivable_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Bill Amount to be collected for this transaction.",
     )
-    driver_name = models.CharField(
-        max_length=100,
-        blank=True,
-        null=True,
-        help_text="Name associated with the record.",
+    received_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Amount received for this transaction.",
     )
-    time = models.DateTimeField(
-        blank=True, null=True, help_text="Datetime of the transaction."
-    )
-    leak = models.PositiveIntegerField(
-        default=0, help_text="Number of jars with leaks."
-    )
-    half_cap = models.PositiveIntegerField(
-        default=0, help_text="Number of jars with half caps."
-    )
-    return_jar = models.PositiveIntegerField(
-        default=0, help_text="Number of jars returned."
-    )
-    notes = models.TextField(
-        blank=True, null=True, help_text="Additional info about this record."
+    due_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        editable=False,
+        default=Decimal("0.00"),
+        help_text="Remaining due amount after this transaction.",
     )
 
-    jar_in = models.PositiveIntegerField(
-        default=0, help_text="Number of jars coming in."
-    )
-    jar_out = models.PositiveIntegerField(
-        default=0, help_text="Number of jars going out."
-    )
-    fillers = models.ForeignKey(
-        "Filler",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="jar_records",
-        help_text="Contact person filling the jars.",
-    )
-    vehicle_number = models.CharField(
-        max_length=20,
-        blank=True,
-        null=True,
-        help_text="Vehicle number used for transportation.",
-    )
-    name = models.CharField(
-        max_length=100,
-        blank=True,
-        null=True,
-        help_text="Name associated with the record.",
-    )
-    timestamp = models.DateTimeField(
-        blank=True, null=True, help_text="Timestamp of the transaction."
-    )
-    leak = models.PositiveIntegerField(
-        default=0, help_text="Number of jars with leaks."
-    )
-    half_cap = models.PositiveIntegerField(
-        default=0, help_text="Number of jars with half caps."
-    )
-    return_jar = models.PositiveIntegerField(
-        default=0, help_text="Number of jars returned."
-    )
-    notes = models.TextField(
-        blank=True, null=True, help_text="Additional info about this record."
-    )
+    def save(self, *args, **kwargs):
+        # Calculate jar_out
+        self.jar_out = self.jar_in - (self.leak + self.half_cap + self.return_jar)
+
+        # Calculate current due for this transaction
+        current_due = self.receivable_amount - self.received_amount
+
+        # Fetch the cumulative due amount from previous records
+        previous_due = (
+            JarInOut.objects.filter(fillers=self.fillers)
+            .exclude(id=self.id)  # Exclude the current record
+            .order_by("created_at")  # Ensure correct chronological order
+            .aggregate(total_due=models.Sum("due_amount"))["total_due"]
+            or Decimal("0.00")
+        )
+
+        # Cumulative due = previous cumulative + current due
+        self.due_amount = previous_due + current_due
+
+        super().save(*args, **kwargs)
+
+        # Automatically create or update the ledger entry
+        FillerLedger.objects.create(
+            filler=self.fillers,
+            jar_in_out=self,
+            date=self.created_at,
+            amount_received=self.received_amount,
+            amount_due=self.due_amount,
+            remarks=self.notes,
+        )
 
     def __str__(self):
         return f"Jar In: {self.jar_in}, Jar Out: {self.jar_out} on {self.created_at.strftime('%Y-%m-%d')}"
@@ -388,7 +363,7 @@ class FillerLedger(models.Model):
         max_digits=10,
         decimal_places=2,
         default=Decimal("0.00"),
-        help_text="Amount still due.",
+        help_text="Cumulative due amount for the filler.",
     )
     remarks = models.TextField(
         blank=True,
@@ -396,12 +371,10 @@ class FillerLedger(models.Model):
         help_text="Remarks or additional details about this ledger entry.",
     )
 
-    def balance_due(self):
-        """Calculate the balance due."""
-        return self.amount_due - self.amount_received
-
     def __str__(self):
         return f"{self.filler.contact_person} - {self.date.strftime('%Y-%m-%d')}"
+
+
 
 
 class CreditMarket(models.Model):

@@ -98,10 +98,6 @@ DeliveryCustomerFormSet = modelformset_factory(
 )
 
 
-from django import forms
-from .models import MonthlyExpense, Vendor, Product
-
-
 class MonthlyExpenseForm(forms.ModelForm):
     class Meta:
         model = MonthlyExpense
@@ -164,28 +160,24 @@ class JarInOutForm(forms.ModelForm):
         model = JarInOut
         fields = [
             "jar_in",
-            "jar_out",
             "fillers",
-            "driver_name",
-            "time",
             "leak",
             "half_cap",
             "return_jar",
+            "receivable_amount",  # User inputs this field
+            "received_amount",
             "notes",
         ]
         widgets = {
-            "timestamp": forms.DateTimeInput(
-                attrs={"type": "datetime-local", "class": "form-control"}
-            ),
             "notes": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
         }
 
     def __init__(self, *args, **kwargs):
-        super(JarInOutForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         for field_name, field in self.fields.items():
             field.widget.attrs["class"] = "form-control"
-            if field_name != "timestamp":  # Timestamp already has its widget defined
-                field.widget.attrs["class"] = "form-control"
+
+
 
 
 class BillForm(forms.ModelForm):
