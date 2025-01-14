@@ -13,6 +13,8 @@ from datetime import datetime, timedelta, date
 from django.utils.timezone import now
 from django.db.models import Prefetch
 
+from django.db import transaction
+
 import json
 
 from product import models
@@ -21,217 +23,216 @@ from .forms import (
     BillForm,
     DecreaseJarCapForm,
     DeliveryForm,
-    DeliveryCustomerFormSet,
-    FillerLedgerForm,
     IncreaseJarCapForm,
     JarCapForm,
     JarInOutForm,
     MonthlyExpenseForm,
+    DeliveryInventoryFormSet,
+    MonthlyCustomerDeliveryForm,
+    InHandDeliveryForm,
+    InventoryReportForm,
+    DeliveryCompleteForm,
+    DeliveryItem,
 )
 
 from account.models import User
 from product.models import (
     Bill,
-    Customer,
     Delivery,
     Filler,
     FillerLedger,
     JarCap,
     JarInOut,
     MonthlyExpense,
-    Trip,
-    DeliveryCustomer,
+    CustomerPrice,
+    InventoryReport,
+    WaterProduct,
 )
 
 
 def delivery(request):
-    today = now().date()
-    current_month_start = today.replace(day=1)
-    current_month_end = (
-        today.replace(month=today.month % 12 + 1, day=1)
-        if today.month < 12
-        else today.replace(year=today.year + 1, month=1, day=1)
-    ) - timedelta(days=1)
-
-    filter_date = request.GET.get("date", None)
-    if filter_date:
-        filter_date = datetime.strptime(filter_date, "%Y-%m").date()
-        current_month_start = filter_date.replace(day=1)
-        current_month_end = (
-            filter_date.replace(month=filter_date.month % 12 + 1, day=1)
-            if filter_date.month < 12
-            else filter_date.replace(year=filter_date.year + 1, month=1, day=1)
-        ) - timedelta(days=1)
-
-    user = request.user
-
-    # Query deliveries based on the user's role
-    if user.role == User.DRIVER:
-        deliveries = Delivery.objects.filter(
-            trip__driver=user,
-            trip__date__range=(current_month_start, current_month_end),
-        )
-    else:
-        deliveries = Delivery.objects.filter(
-            trip__date__range=(current_month_start, current_month_end)
-        )
-
-    # Aggregate data grouped by date
-    delivery_summary = (
-        deliveries.values("trip__date")
-        .annotate(
-            no_of_trips=Count("trip", distinct=True),
-            total_returned=Sum("returned_count"),
-            total_leak=Sum("leak_count"),
-            total_half_caps=Sum("half_caps_count"),
-            total_jar_delivered=Sum("customer_deliveries__quantity"),
-            total_customers=Count("customer_deliveries__customer", distinct=True),
-        )
-        .order_by("trip__date")
-    )
-
-    context = {
-        "delivery_summary": delivery_summary,
-        "current_month_start": current_month_start,
-        "current_month_end": current_month_end,
-        "today": today,
-        "user": user,
-    }
-    print(context)
-    return render(request, "plant/delivery.html", context)
+    return render(request, "plant/delivery.html")
 
 
 @login_required
 def add_delivery(request):
-    driver = request.user
-    today = date.today()
-
     if request.method == "POST":
-        print("Submit POST Request")
         delivery_form = DeliveryForm(request.POST)
-        customer_formset = DeliveryCustomerFormSet(request.POST)
+        inventory_formset = DeliveryInventoryFormSet(request.POST, prefix="inventory")
 
-        if delivery_form.is_valid() and customer_formset.is_valid():
-            print("Valid Form")
-            delivery = delivery_form.save(commit=False)
-            delivery.driver = driver
+        if delivery_form.is_valid() and inventory_formset.is_valid():
+            try:
+                with transaction.atomic():
+                    # Save delivery
+                    delivery = delivery_form.save(commit=False)
+                    delivery.driver = request.user
+                    delivery.save()
 
-            # Validate total jars
-            delivered_count = sum(
-                form.cleaned_data["quantity"]
-                for form in customer_formset
-                if form.cleaned_data
-            )
-            accounted_jars = (
-                delivered_count
-                + delivery.returned_count
-                + delivery.leak_count
-                + delivery.half_caps_count
-            )
-            if accounted_jars != delivery.total_jars:
-                print("Not valid Jar Number")
-                messages.error(
-                    request,
-                    f"Total jars ({delivery.total_jars}) must match sum of accounted jars ({accounted_jars}).",
-                )
-            else:
-                # return redirect("add_delivery")
-                # Create the trip only when validation succeeds
-                trip_number = Trip.objects.filter(driver=driver, date=today).count() + 1
-                current_trip = Trip.objects.create(
-                    driver=driver, date=today, trip_number=trip_number
-                )
+                    # Save inventory items
+                    inventory_items = inventory_formset.save(commit=False)
+                    for item in inventory_items:
+                        if item.quantity > 0:  # Only save items with quantity
+                            item.delivery = delivery
+                            item.save()
 
-                delivery.trip = current_trip
-                delivery.save()
-
-                for form in customer_formset:
-                    customer_delivery = form.save(commit=False)
-                    customer_delivery.delivery = delivery
-
-                    # Assign customer based on customer_type
-                    customer_type = form.cleaned_data.get("customer_type")
-                    if customer_type == "monthly":
-                        customer_delivery.customer = form.cleaned_data.get(
-                            "existing_customer"
+                    messages.success(request, "Delivery created successfully!")
+                    # Use reverse() to generate the correct URL
+                    return redirect(
+                        reverse(
+                            "record_delivery",
+                            kwargs={"delivery_id": delivery.id},
                         )
-                    elif customer_type == "in_hand_existing":
-                        customer_delivery.customer = form.cleaned_data.get(
-                            "existing_in_hand_customer"
-                        )
-                    elif customer_type == "in_hand_new":
-                        # Create a new customer for 'in_hand_new'
-                        new_customer = Customer.objects.create(
-                            name=form.cleaned_data.get("new_customer_name"),
-                            contact_number=form.cleaned_data.get(
-                                "new_customer_contact"
-                            ),
-                            customer_type="in_hand",
-                        )
-                        customer_delivery.customer = new_customer
-
-                    customer_delivery.save()
-
-                messages.success(request, "Delivery added successfully.")
-                return redirect("add_delivery")
+                    )
+            except Exception as e:
+                messages.error(request, f"Error creating delivery: {str(e)}")
         else:
-            print("Not Valid POST Request")
-            print(delivery_form.errors)
-            print(customer_formset.errors)
-
-            # Handle delivery form errors
-            if not delivery_form.is_valid():
-                for field in delivery_form:
-                    for error in field.errors:
-                        messages.error(
-                            request, f"Error in field '{field.label}': {error}"
-                        )
-
-                # Handle non-field errors (form-wide errors) for delivery form
-                for error in delivery_form.non_field_errors():
-                    messages.error(request, f"Error: {error}")
-
-            # Handle customer formset errors
-            if not customer_formset.is_valid():
-                for i, form in enumerate(customer_formset):  # Add index for form number
-                    for field in form:
-                        for error in field.errors:
-                            messages.error(
-                                request,
-                                f"Customer {i+1} Error in field '{field.label}': {error}",  # Display form number
-                            )
-                    for (
-                        error
-                    ) in (
-                        form.non_field_errors()
-                    ):  # handle non field errors for each form in the formset
-                        messages.error(request, f"Customer {i+1} Error: {error}")
-
-                for error in customer_formset.non_form_errors():
-                    messages.error(request, f"Customer Formset Error: {error}")
+            messages.error(request, "Please correct the errors below.")
     else:
-        print("GET Request")
         delivery_form = DeliveryForm()
-        customer_formset = DeliveryCustomerFormSet(
-            queryset=DeliveryCustomer.objects.none()
-        )
+        inventory_formset = DeliveryInventoryFormSet(prefix="inventory")
 
-    monthly_customers = list(
-        Customer.objects.filter(customer_type="monthly").values("id", "name")
-    )
-    in_hand_customers = list(
-        Customer.objects.filter(customer_type="in_hand").values("id", "name")
-    )
     return render(
         request,
         "plant/add_delivery.html",
         {
             "delivery_form": delivery_form,
-            "customer_formset": customer_formset,
-            "driver": driver,
-            "monthly_customers": json.dumps(monthly_customers, cls=DjangoJSONEncoder),
-            "in_hand_customers": json.dumps(in_hand_customers, cls=DjangoJSONEncoder),
+            "inventory_formset": inventory_formset,
         },
+    )
+
+
+@login_required
+def record_delivery(request, delivery_id):
+    delivery = get_object_or_404(
+        Delivery, id=delivery_id, driver=request.user, status="ONGOING"
+    )
+
+    if request.method == "POST":
+        if "monthly_delivery" in request.POST:
+            form = MonthlyCustomerDeliveryForm(request.POST)
+            if form.is_valid():
+                delivery_item = form.save(commit=False)
+                delivery_item.delivery = delivery
+
+                # Get customer-specific price
+                customer_price = CustomerPrice.objects.filter(
+                    monthly_customer=form.cleaned_data["monthly_customer"],
+                    water_product=form.cleaned_data["water_product"],
+                    is_active=True,
+                ).first()
+
+                if customer_price:
+                    delivery_item.price_per_unit = customer_price.price
+                    delivery_item.save()
+                    messages.success(
+                        request, "Monthly customer delivery recorded successfully!"
+                    )
+                else:
+                    messages.error(
+                        request, "No price found for this customer and product!"
+                    )
+
+                return redirect("record_delivery", delivery_id=delivery_id)
+
+        elif "inhand_delivery" in request.POST:
+            form = InHandDeliveryForm(request.POST)
+            if form.is_valid():
+                delivery_item = form.save(commit=False)
+                delivery_item.delivery = delivery
+                delivery_item.save()
+                messages.success(request, "In-hand delivery recorded successfully!")
+                return redirect("record_delivery", delivery_id=delivery_id)
+
+        elif "inventory_report" in request.POST:
+            form = InventoryReportForm(request.POST)
+            if form.is_valid():
+                report = form.save(commit=False)
+                report.delivery = delivery
+                report.save()
+                messages.success(request, "Inventory report recorded successfully!")
+                return redirect("record_delivery", delivery_id=delivery_id)
+
+    else:
+        monthly_form = MonthlyCustomerDeliveryForm()
+        inhand_form = InHandDeliveryForm()
+        report_form = InventoryReportForm()
+
+    # Calculate remaining inventory
+    inventory_taken = {
+        item.water_product_id: item.quantity for item in delivery.inventory_items.all()
+    }
+
+    delivered = (
+        DeliveryItem.objects.filter(delivery=delivery)
+        .values("water_product")
+        .annotate(total=Sum("quantity"))
+    )
+
+    reported = (
+        InventoryReport.objects.filter(delivery=delivery)
+        .values("water_product")
+        .annotate(total=Sum(F("leaks") + F("returns") + F("half_caps")))
+    )
+
+    remaining_inventory = {}
+    for product_id, taken in inventory_taken.items():
+        delivered_qty = next(
+            (
+                item["total"]
+                for item in delivered
+                if item["water_product"] == product_id
+            ),
+            0,
+        )
+        reported_qty = next(
+            (item["total"] for item in reported if item["water_product"] == product_id),
+            0,
+        )
+        remaining_inventory[product_id] = taken - delivered_qty - reported_qty
+
+    remaining_inventory_with_products = {}
+    for product_id, quantity in remaining_inventory.items():
+        product = WaterProduct.objects.get(id=product_id)
+        remaining_inventory_with_products[product] = quantity
+
+    context = {
+        "delivery": delivery,
+        "monthly_form": monthly_form,
+        "inhand_form": inhand_form,
+        "report_form": report_form,
+        "delivery_items": delivery.delivery_items.all().order_by("-id"),
+        "inventory_reports": delivery.reports.all().order_by("-id"),
+        "remaining_inventory": remaining_inventory_with_products,
+    }
+
+    return render(request, "plant/record_delivery.html", context)
+
+
+@login_required
+def complete_delivery(request, delivery_id):
+    delivery = get_object_or_404(
+        Delivery, id=delivery_id, driver=request.user, status="ONGOING"
+    )
+
+    if request.method == "POST":
+        form = DeliveryCompleteForm(request.POST)
+        if form.is_valid():
+            if delivery.validate_inventory_balance():
+                delivery.status = "COMPLETED"
+                delivery.end_time = timezone.now()
+                delivery.save()
+                messages.success(request, "Delivery completed successfully!")
+                return redirect("delivery_list")
+            else:
+                messages.error(
+                    request,
+                    "Inventory counts do not match. Please verify all deliveries and reports.",
+                )
+    else:
+        form = DeliveryCompleteForm()
+
+    return render(
+        request, "plant/complete_delivery.html", {"delivery": delivery, "form": form}
     )
 
 
@@ -292,7 +293,6 @@ def add_expense(request):
     else:
         form = MonthlyExpenseForm()
     return render(request, "expenses/add_expense.html", {"form": form})
-
 
 
 def monthly_summary(request):
@@ -387,7 +387,9 @@ def jar_in_out_list(request):
 
     # Apply date filter if provided
     if start_date:
-        jar_in_out_queryset = jar_in_out_queryset.filter(created_at__date__gte=start_date)
+        jar_in_out_queryset = jar_in_out_queryset.filter(
+            created_at__date__gte=start_date
+        )
     if end_date:
         jar_in_out_queryset = jar_in_out_queryset.filter(created_at__date__lte=end_date)
 
@@ -395,10 +397,12 @@ def jar_in_out_list(request):
     jar_in_out_prefetch = Prefetch(
         "jarinout_set",
         queryset=jar_in_out_queryset,
-        to_attr="recent_records"  # Store the prefetched queryset as a custom attribute
+        to_attr="recent_records",  # Store the prefetched queryset as a custom attribute
     )
 
-    fillers = Filler.objects.prefetch_related(jar_in_out_prefetch).order_by("contact_person")
+    fillers = Filler.objects.prefetch_related(jar_in_out_prefetch).order_by(
+        "contact_person"
+    )
 
     context = {
         "fillers": fillers,
@@ -440,18 +444,23 @@ def filler_ledger_detail(request, filler_id):
         record.balance_due = cumulative_balance_due
 
     # Calculate cumulative totals
-    total_receivable = ledger_records.aggregate(total=Sum('jar_in_out__receivable_amount'))['total'] or Decimal("0.00")
-    total_received = ledger_records.aggregate(total=Sum('amount_received'))['total'] or Decimal("0.00")
+    total_receivable = ledger_records.aggregate(
+        total=Sum("jar_in_out__receivable_amount")
+    )["total"] or Decimal("0.00")
+    total_received = ledger_records.aggregate(total=Sum("amount_received"))[
+        "total"
+    ] or Decimal("0.00")
     total_balance_due = cumulative_balance_due
 
     context = {
-        'filler': filler,
-        'ledger_records': ledger_records,
-        'total_receivable': total_receivable,
-        'total_received': total_received,
-        'total_balance_due': total_balance_due,
+        "filler": filler,
+        "ledger_records": ledger_records,
+        "total_receivable": total_receivable,
+        "total_received": total_received,
+        "total_balance_due": total_balance_due,
     }
-    return render(request, 'records/filler_ledger_detail.html', context)
+    return render(request, "records/filler_ledger_detail.html", context)
+
 
 def get_filler_vehicle(request, filler_id):
     try:
@@ -564,7 +573,6 @@ def filler_list(request):
     """Display all fillers in a table."""
     fillers = Filler.objects.all()
     return render(request, "filler/filler_list.html", {"fillers": fillers})
-
 
 
 def filler_detail(request, pk):

@@ -1,101 +1,116 @@
 from datetime import datetime, timedelta, timezone
 from django import forms
-from .models import (
-    Bill,
-    Delivery,
-    JarCap,
-    JarInOut,
-    MonthlyExpense,
-    Customer,
-    DeliveryCustomer,
-)
+from .models import Bill, Delivery, JarCap, JarInOut, MonthlyExpense, DeliveryInventory
 from django.forms import modelformset_factory
 
 from .models import Bill, Delivery, FillerLedger, JarCap, JarInOut, MonthlyExpense
 from django import forms
-from .models import MonthlyExpense, Vendor, Product
+from .models import (
+    MonthlyExpense,
+    Vendor,
+    Product,
+    WaterProduct,
+    Delivery,
+    DeliveryInventory,
+    JarCap,
+    JarInOut,
+    Bill,
+    MonthlyCustomer,
+    DeliveryItem,
+    InventoryReport,
+)
 
 
 class DeliveryForm(forms.ModelForm):
     class Meta:
         model = Delivery
-        fields = ["total_jars", "returned_count", "leak_count", "half_caps_count"]
+        fields = ["notes"]
         widgets = {
-            "total_jars": forms.NumberInput(attrs={"class": "form-control"}),
-            "returned_count": forms.NumberInput(attrs={"class": "form-control"}),
-            "leak_count": forms.NumberInput(attrs={"class": "form-control"}),
-            "half_caps_count": forms.NumberInput(attrs={"class": "form-control"}),
+            "notes": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
         }
 
 
-class DeliveryCustomerForm(forms.ModelForm):
-    CUSTOMER_TYPE_CHOICES = [
-        ("monthly", "Monthly Customer"),
-        ("in_hand_existing", "Existing In-Hand Customer"),
-        ("in_hand_new", "New In-Hand Customer"),
-    ]
+class DeliveryInventoryFormSet(
+    forms.modelformset_factory(
+        DeliveryInventory,
+        fields=["water_product", "quantity"],
+        extra=4,
+        widgets={
+            "water_product": forms.Select(attrs={"class": "form-control"}),
+            "quantity": forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
+        },
+    )
+):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Only show active water products
+        for form in self.forms:
+            form.fields["water_product"].queryset = WaterProduct.objects.filter(
+                is_active=True
+            )
 
-    customer_type = forms.ChoiceField(
-        choices=CUSTOMER_TYPE_CHOICES,
-        widget=forms.Select(attrs={"class": "form-control"}),
-        label="Customer Type",
-    )
-    existing_customer = forms.ModelChoiceField(
-        queryset=Customer.objects.filter(customer_type="monthly"),
-        required=False,
-        widget=forms.Select(attrs={"class": "form-control"}),
-        label="Existing Monthly Customer",
-    )
-    existing_in_hand_customer = forms.ModelChoiceField(
-        queryset=Customer.objects.filter(customer_type="in_hand"),
-        required=False,
-        widget=forms.Select(attrs={"class": "form-control"}),
-        label="Existing In-Hand Customer",
-    )
-    new_customer_name = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={"class": "form-control"}),
-        label="New In-Hand Customer Name",
-    )
-    new_customer_contact = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={"class": "form-control"}),
-        label="New In-Hand Customer Contact",
+
+class MonthlyCustomerDeliveryForm(forms.ModelForm):
+    monthly_customer = forms.ModelChoiceField(
+        queryset=MonthlyCustomer.objects.filter(is_active=True),
+        widget=forms.Select(attrs={"class": "form-control select2"}),
+        empty_label="Select Monthly Customer",
     )
 
     class Meta:
-        model = DeliveryCustomer
-        fields = ["quantity", "price_per_jar"]
+        model = DeliveryItem
+        fields = ["monthly_customer", "water_product", "quantity"]
         widgets = {
-            "quantity": forms.NumberInput(attrs={"class": "form-control"}),
-            "price_per_jar": forms.NumberInput(attrs={"class": "form-control"}),
+            "water_product": forms.Select(attrs={"class": "form-control"}),
+            "quantity": forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
         }
 
-    def clean(self):
-        cleaned_data = super().clean()
-        customer_type = cleaned_data.get("customer_type")
-
-        if customer_type == "monthly" and not cleaned_data.get("existing_customer"):
-            raise forms.ValidationError("Please select an existing monthly customer.")
-
-        if customer_type == "in_hand_existing" and not cleaned_data.get(
-            "existing_in_hand_customer"
-        ):
-            raise forms.ValidationError("Please select an existing in-hand customer.")
-
-        if customer_type == "in_hand_new" and not cleaned_data.get("new_customer_name"):
-            raise forms.ValidationError(
-                "Please provide the name of the new in-hand customer."
-            )
-
-        return cleaned_data
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["water_product"].queryset = WaterProduct.objects.filter(
+            is_active=True
+        )
 
 
-DeliveryCustomerFormSet = modelformset_factory(
-    DeliveryCustomer,
-    form=DeliveryCustomerForm,
-    extra=0,
-)
+class InHandDeliveryForm(forms.ModelForm):
+    class Meta:
+        model = DeliveryItem
+        fields = [
+            "customer_name",
+            "customer_phone",
+            "water_product",
+            "quantity",
+            "price_per_unit",
+        ]
+        widgets = {
+            "customer_name": forms.TextInput(attrs={"class": "form-control"}),
+            "customer_phone": forms.TextInput(attrs={"class": "form-control"}),
+            "water_product": forms.Select(attrs={"class": "form-control"}),
+            "quantity": forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
+            "price_per_unit": forms.NumberInput(
+                attrs={"class": "form-control", "min": "0", "step": "0.01"}
+            ),
+        }
+
+
+class InventoryReportForm(forms.ModelForm):
+    class Meta:
+        model = InventoryReport
+        fields = ["water_product", "leaks", "returns", "half_caps", "notes"]
+        widgets = {
+            "water_product": forms.Select(attrs={"class": "form-control"}),
+            "leaks": forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
+            "returns": forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
+            "half_caps": forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
+            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+        }
+
+
+class DeliveryCompleteForm(forms.Form):
+    confirm_completion = forms.BooleanField(
+        required=True,
+        label="I confirm all deliveries and reports have been recorded correctly",
+    )
 
 
 class MonthlyExpenseForm(forms.ModelForm):
@@ -176,8 +191,6 @@ class JarInOutForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for field_name, field in self.fields.items():
             field.widget.attrs["class"] = "form-control"
-
-
 
 
 class BillForm(forms.ModelForm):

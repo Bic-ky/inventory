@@ -4,7 +4,6 @@ from import_export.admin import ImportExportModelAdmin
 from .models import (
     Bill,
     CreditMarket,
-    Customer,
     Filler,
     JarCap,
     JarInOut,
@@ -12,21 +11,21 @@ from .models import (
     Product,
     Vehicle,
     Driver,
-    Delivery,
     Jar,
     Vendor,
     Filler,
-    Trip,
-    DeliveryCustomer,
+    MonthlyCustomer,
+    WaterProduct,
+    CustomerPrice,
+    Delivery,
+    DeliveryInventory,
+    DeliveryItem,
+    InventoryReport,
 )
 from django.utils.html import format_html
 
 
 # Resource classes for each model to define what data can be imported/exported
-class CustomerResource(resources.ModelResource):
-    class Meta:
-        model = Customer
-        fields = ("id", "name", "customer_type", "address", "contact_number")
 
 
 class VehicleResource(resources.ModelResource):
@@ -39,12 +38,6 @@ class DriverResource(resources.ModelResource):
     class Meta:
         model = Driver
         fields = ("id", "user", "license_number", "vehicle")
-
-
-class DeliveryResource(resources.ModelResource):
-    class Meta:
-        model = Delivery
-        fields = ("id", "date", "driver", "customer", "jar_type")
 
 
 class JarResource(resources.ModelResource):
@@ -60,12 +53,6 @@ class JarResource(resources.ModelResource):
         )
 
 
-# Register models with ImportExportModelAdmin for Excel import/export
-@admin.register(Customer)
-class CustomerAdmin(ImportExportModelAdmin):
-    resource_class = CustomerResource
-
-
 @admin.register(Vehicle)
 class VehicleAdmin(ImportExportModelAdmin):
     resource_class = VehicleResource
@@ -74,16 +61,6 @@ class VehicleAdmin(ImportExportModelAdmin):
 @admin.register(Driver)
 class DriverAdmin(ImportExportModelAdmin):
     resource_class = DriverResource
-
-
-# @admin.register(Delivery)
-# class DeliveryAdmin(ImportExportModelAdmin):
-#     resource_class = DeliveryResource
-
-#     list_display = ('date', 'driver', 'customer')
-
-#     # Optionally, allow filtering by date
-#     list_filter = ('date', 'jar_type', 'driver', 'customer')
 
 
 @admin.register(Jar)
@@ -119,6 +96,114 @@ admin.site.register(Product)
 admin.site.register(Filler)
 admin.site.register(CreditMarket)
 admin.site.register(JarInOut)
-admin.site.register(Trip)
-admin.site.register(Delivery)
-admin.site.register(DeliveryCustomer)
+
+
+@admin.register(MonthlyCustomer)
+class MonthlyCustomerAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "phone", "address", "is_active", "created_at")
+    search_fields = ("name", "phone", "address")
+    list_filter = ("is_active", "created_at")
+
+
+@admin.register(WaterProduct)
+class WaterProductAdmin(admin.ModelAdmin):
+    list_display = ("id", "water_type", "quality", "default_price", "is_active")
+    list_filter = ("water_type", "quality", "is_active")
+    search_fields = ("water_type", "quality")
+
+
+@admin.register(CustomerPrice)
+class CustomerPriceAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "monthly_customer",
+        "water_product",
+        "price",
+        "effective_from",
+        "is_active",
+    )
+    list_filter = ("is_active", "effective_from")
+    search_fields = (
+        "monthly_customer__name",
+        "water_product__quality",
+        "water_product__water_type",
+    )
+
+
+@admin.register(Delivery)
+class DeliveryAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "driver",
+        "delivery_date",
+        "start_time",
+        "end_time",
+        "status",
+        "notes",
+    )
+    list_filter = ("delivery_date", "status")
+    search_fields = ("driver__full_name",)
+    readonly_fields = ("delivery_date", "start_time")  # Prevent modification
+
+
+@admin.register(DeliveryInventory)
+class DeliveryInventoryAdmin(admin.ModelAdmin):
+    list_display = ("id", "delivery", "water_product", "quantity")
+    list_filter = (
+        "delivery__delivery_date",
+        "water_product__water_type",
+        "water_product__quality",
+    )
+    search_fields = (
+        "delivery__driver__full_name",
+        "water_product__quality",
+        "water_product__water_type",
+    )
+
+
+@admin.register(DeliveryItem)
+class DeliveryItemAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "delivery",
+        "water_product",
+        "monthly_customer",
+        "quantity",
+        "price_per_unit",
+        "customer_name",
+        "customer_phone",
+    )
+    list_filter = (
+        "delivery__delivery_date",
+        "water_product__water_type",
+        "water_product__quality",
+    )
+    search_fields = (
+        "monthly_customer__name",
+        "customer_name",
+        "customer_phone",
+        "water_product__quality",
+    )
+
+
+@admin.register(InventoryReport)
+class InventoryReportAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "delivery",
+        "water_product",
+        "leaks",
+        "returns",
+        "half_caps",
+        "notes",
+    )
+    list_filter = (
+        "delivery__delivery_date",
+        "water_product__water_type",
+        "water_product__quality",
+    )
+    search_fields = (
+        "delivery__driver__full_name",
+        "water_product__quality",
+        "water_product__water_type",
+    )

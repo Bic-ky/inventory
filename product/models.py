@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 
 from decimal import Decimal
 from datetime import datetime
@@ -6,115 +7,148 @@ from datetime import datetime
 from account.models import User
 
 
-# Customer Information (all are monthly customers)
 class MonthlyCustomer(models.Model):
-    name = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=255)
     address = models.TextField(blank=True, null=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ["name", "phone"]
 
     def __str__(self):
         return self.name
 
 
-# Product Information (e.g., Normal Jar, Premium Bottle)
 class WaterProduct(models.Model):
-    WATER_TYPE = [
+    WATER_TYPE_CHOICES = [
         ("JAR", "Jar"),
         ("BOTTLE", "Bottle"),
     ]
-
-    QUALITY_TYPE = [
+    QUALITY_CHOICES = [
         ("NORMAL", "Normal"),
         ("PREMIUM", "Premium"),
     ]
 
-    name = models.CharField(max_length=255, unique=True)
-    water_type = models.CharField(max_length=100, choices=WATER_TYPE)
-    quality = models.CharField(max_length=100, choices=QUALITY_TYPE)
+    water_type = models.CharField(max_length=10, choices=WATER_TYPE_CHOICES)
+    quality = models.CharField(max_length=10, choices=QUALITY_CHOICES)
+    default_price = models.DecimalField(max_digits=10, decimal_places=2)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ["water_type", "quality"]
 
     def __str__(self):
-        return f"{self.quality.capitalize()} {self.water_type.capitalize()}"
+        return f"{self.quality} {self.water_type}"
 
 
-# Price Mapping for Each Customer and WaterProduct
-class Price(models.Model):
+class CustomerPrice(models.Model):
     monthly_customer = models.ForeignKey(
         MonthlyCustomer, on_delete=models.CASCADE, related_name="prices"
     )
-    water_product = models.ForeignKey(
-        WaterProduct, on_delete=models.CASCADE, related_name="prices"
-    )
-    price_per_unit = models.DecimalField(max_digits=10, decimal_places=2)
+    water_product = models.ForeignKey(WaterProduct, on_delete=models.CASCADE)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    effective_from = models.DateField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ["monthly_customer", "water_product", "effective_from"]
 
     def __str__(self):
-        return f"{self.monthly_customer.name} - {self.water_product.name} @ {self.price_per_unit}"
+        return f"{self.monthly_customer} - {self.water_product} @ {self.price}"
 
 
-# Delivery Records
 class Delivery(models.Model):
+    STATUS_CHOICES = [
+        ("ONGOING", "Ongoing"),
+        ("COMPLETED", "Completed"),
+        ("VERIFIED", "Verified"),
+    ]
+
     driver = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="deliveries"
+        User, on_delete=models.PROTECT, related_name="deliveries"
     )
     delivery_date = models.DateField(auto_now_add=True)
+    start_time = models.TimeField(auto_now_add=True)
+    end_time = models.TimeField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="ONGOING")
+    notes = models.TextField(blank=True, null=True)
 
-    # Pickup quantities for each product type
-    total_normal_jars = models.PositiveIntegerField(default=0)
-    total_premium_jars = models.PositiveIntegerField(default=0)
-    total_normal_bottles = models.PositiveIntegerField(default=0)
-    total_premium_bottles = models.PositiveIntegerField(default=0)
+    def __str__(self):
+        return f"Delivery #{self.id} by {self.driver.full_name} on {self.delivery_date}"
 
-    def total_water_picked(self):
-        return (
-            self.total_normal_jars
-            + self.total_premium_jars
-            + self.total_normal_bottles
-            + self.total_premium_bottles
+    def validate_inventory_balance(self):
+        total_taken = sum(item.quantity for item in self.inventory_items.all())
+        total_delivered = sum(item.quantity for item in self.delivery_items.all())
+        total_reported = sum(
+            item.leaks + item.returns + item.half_caps for item in self.reports.all()
         )
+        return total_taken == (total_delivered + total_reported)
 
     def total_water_accounted_for(self):
-        delivered = sum(detail.quantity for detail in self.details.all())
-        reported = sum(
+        total_delivered = sum(item.quantity for item in self.delivery_items.all())
+        total_reported = sum(
             report.leaks + report.returns + report.half_caps
             for report in self.reports.all()
         )
-        return delivered + reported
-
-    def is_delivery_complete(self):
-        return self.total_water_picked() == self.total_water_accounted_for()
-
-    def __str__(self):
-        return f"Delivery by {self.driver.name} on {self.delivery_date}"
+        return total_delivered + total_reported
 
 
-# Delivery Details (WaterProduct Delivery to MonthlyCustomers)
-class DeliveryDetail(models.Model):
+class DeliveryInventory(models.Model):
     delivery = models.ForeignKey(
-        Delivery, on_delete=models.CASCADE, related_name="details"
+        Delivery, on_delete=models.CASCADE, related_name="inventory_items"
     )
-    water_product = models.ForeignKey(WaterProduct, on_delete=models.CASCADE)
-    monthly_customer = models.ForeignKey(MonthlyCustomer, on_delete=models.CASCADE)
+    water_product = models.ForeignKey(WaterProduct, on_delete=models.PROTECT)
+    quantity = models.PositiveIntegerField()
+
+    class Meta:
+        unique_together = ["delivery", "water_product"]
+
+
+class DeliveryItem(models.Model):
+    delivery = models.ForeignKey(
+        Delivery, on_delete=models.CASCADE, related_name="delivery_items"
+    )
+    water_product = models.ForeignKey(WaterProduct, on_delete=models.PROTECT)
+    monthly_customer = models.ForeignKey(
+        MonthlyCustomer, on_delete=models.PROTECT, null=True, blank=True
+    )
     quantity = models.PositiveIntegerField()
     price_per_unit = models.DecimalField(max_digits=10, decimal_places=2)
+    customer_name = models.CharField(
+        max_length=255, null=True, blank=True
+    )  # For in-hand customers
+    customer_phone = models.CharField(
+        max_length=20, null=True, blank=True
+    )  # For in-hand customers
+
+    def clean(self):
+        if not self.monthly_customer and not self.customer_name:
+            raise ValidationError(
+                "Either monthly customer or customer name must be provided"
+            )
 
     @property
-    def total_price(self):
-        return self.quantity * self.price_per_unit
-
-    def __str__(self):
-        return f"{self.water_product.name} to {self.monthly_customer.name} - {self.quantity}"
+    def total_amount(self):
+        return Decimal(self.quantity) * self.price_per_unit
 
 
-# Report Discrepancies (Leaks, Returns, Half Caps)
-class Report(models.Model):
+class InventoryReport(models.Model):
     delivery = models.ForeignKey(
         Delivery, on_delete=models.CASCADE, related_name="reports"
     )
-    water_product = models.ForeignKey(WaterProduct, on_delete=models.CASCADE)
+    water_product = models.ForeignKey(WaterProduct, on_delete=models.PROTECT)
     leaks = models.PositiveIntegerField(default=0)
     returns = models.PositiveIntegerField(default=0)
     half_caps = models.PositiveIntegerField(default=0)
+    notes = models.TextField(blank=True, null=True)
+
+    class Meta:
+        unique_together = ["delivery", "water_product"]
 
     def __str__(self):
-        return f"Report for {self.water_product.name} in Delivery {self.delivery.id}"
+        return f"Report for {self.water_product} in Delivery #{self.delivery.id}"
 
 
 # Vehicle model

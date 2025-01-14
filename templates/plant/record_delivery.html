@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Inventory Summary -->
+        <div class="col-md-3">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Remaining Inventory</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Remaining</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product, quantity in remaining_inventory.items %}
+                            <tr>
+                                <td>{{ product }}</td>
+                                <td>{{ quantity }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-9">
+            <!-- Monthly Customer Delivery Form -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Monthly Customer Delivery</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-4">{{ monthly_form.monthly_customer }}</div>
+                            <div class="col-md-4">{{ monthly_form.water_product }}</div>
+                            <div class="col-md-3">{{ monthly_form.quantity }}</div>
+                            <div class="col-md-1">
+                                <button type="submit" name="monthly_delivery" class="btn btn-primary">Add</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- In-Hand Customer Delivery Form -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">In-Hand Customer Delivery</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        <div class="row mb-3">
+                            <div class="col-md-4">{{ inhand_form.customer_name }}</div>
+                            <div class="col-md-4">{{ inhand_form.customer_phone }}</div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-3">{{ inhand_form.water_product }}</div>
+                            <div class="col-md-3">{{ inhand_form.quantity }}</div>
+                            <div class="col-md-3">{{ inhand_form.price_per_unit }}</div>
+                            <div class="col-md-3">
+                                <button type="submit" name="inhand_delivery" class="btn btn-primary">Add</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Inventory Report Form -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Inventory Report</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        <div class="row mb-3">
+                            <div class="col-md-3">{{ report_form.water_product }}</div>
+                            <div class="col-md-2">{{ report_form.leaks }}</div>
+                            <div class="col-md-2">{{ report_form.returns }}</div>
+                            <div class="col-md-2">{{ report_form.half_caps }}</div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">{{ report_form.notes }}</div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="submit" name="inventory_report" class="btn btn-primary">Add Report</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Delivery Summary -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Delivery Summary</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Deliveries Made</h6>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Customer</th>
+                                <th>Product</th>
+                                <th>Quantity</th>
+                                <th>Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in delivery_items %}
+                            <tr>
+                                <td>
+                                    {% if item.monthly_customer %}
+                                        {{ item.monthly_customer }}
+                                    {% else %}
+                                        {{ item.customer_name }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.water_product }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ item.price_per_unit }}</td>
+                                <td>{{ item.total_amount }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <h6 class="mt-4">Reports</h6>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Leaks</th>
+                                <th>Returns</th>
+                                <th>Half Caps</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for report in inventory_reports %}
+                            <tr>
+                                <td>{{ report.water_product }}</td>
+                                <td>{{ report.leaks }}</td>
+                                <td>{{ report.returns }}</td>
+                                <td>{{ report.half_caps }}</td>
+                                <td>{{ report.notes }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Complete Delivery Button -->
+            <div class="text-center mb-4">
+                <a href="{% url 'complete_delivery' delivery.id %}" class="btn btn-success btn-lg">
+                    Complete Delivery
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Select2 for better dropdown experience
+    $('.select2').select2({
+        theme: 'bootstrap4',
+        width: '100%'
+    });
+
+    // Form validation
+    const forms = document.querySelectorAll('.needs-validation');
+    Array.from(forms).forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        }, false);
+    });
+
+    // Auto-fill price for monthly customers
+    const monthlyCustomerSelect = document.querySelector('[name="monthly_customer"]');
+    const monthlyProductSelect = document.querySelector('[name="water_product"]');
+    
+    if (monthlyCustomerSelect && monthlyProductSelect) {
+        const updatePrice = async () => {
+            const customerId = monthlyCustomerSelect.value;
+            const productId = monthlyProductSelect.value;
+            
+            if (customerId && productId) {
+                try {
+                    const response = await fetch(`/api/get-customer-price/${customerId}/${productId}/`);
+                    const data = await response.json();
+                    if (data.price) {
+                        document.getElementById('price-display').textContent = 
+                            `Price: ${data.price.toFixed(2)}`;
+                    }
+                } catch (error) {
+                    console.error('Error fetching price:', error);
+                }
+            }
+        };
+
+        monthlyCustomerSelect.addEventListener('change', updatePrice);
+        monthlyProductSelect.addEventListener('change', updatePrice);
+    }
+
+    // Calculate total amount for in-hand deliveries
+    const inhandQuantityInput = document.querySelector('[name="quantity"]');
+    const inhandPriceInput = document.querySelector('[name="price_per_unit"]');
+    const totalAmountDisplay = document.getElementById('total-amount');
+
+    if (inhandQuantityInput && inhandPriceInput && totalAmountDisplay) {
+        const calculateTotal = () => {
+            const quantity = parseFloat(inhandQuantityInput.value) || 0;
+            const price = parseFloat(inhandPriceInput.value) || 0;
+            const total = quantity * price;
+            totalAmountDisplay.textContent = `Total: ${total.toFixed(2)}`;
+        };
+
+        inhandQuantityInput.addEventListener('input', calculateTotal);
+        inhandPriceInput.addEventListener('input', calculateTotal);
+    }
+
+    // Inventory validation
+    const addDeliveryButtons = document.querySelectorAll('[name="monthly_delivery"], [name="inhand_delivery"]');
+    const remainingInventory = JSON.parse(document.getElementById('remaining-inventory-data').textContent);
+
+    addDeliveryButtons.forEach(button => {
+        button.closest('form').addEventListener('submit', event => {
+            const productSelect = event.target.querySelector('[name="water_product"]');
+            const quantityInput = event.target.querySelector('[name="quantity"]');
+            
+            if (productSelect && quantityInput) {
+                const productId = productSelect.value;
+                const quantity = parseInt(quantityInput.value) || 0;
+                
+                if (quantity > remainingInventory[productId]) {
+                    event.preventDefault();
+                    alert('Quantity exceeds remaining inventory for this product!');
+                }
+            }
+        });
+    });
+
+    // Automatic form clearing after successful submission
+    if (document.querySelector('.alert-success')) {
+        const forms = document.querySelectorAll('form');
+        forms.forEach(form => {
+            if (!form.classList.contains('no-auto-clear')) {
+                form.reset();
+                if (form.querySelector('.select2')) {
+                    form.querySelector('.select2').select2('val', '');
+                }
+            }
+        });
+    }
+
+    // Real-time inventory updates
+    function updateRemainingInventory(productId, quantity) {
+        const inventoryCell = document.querySelector(`[data-product-id="${productId}"]`);
+        if (inventoryCell) {
+            const currentQuantity = parseInt(inventoryCell.textContent);
+            inventoryCell.textContent = currentQuantity - quantity;
+            
+            // Visual feedback
+            inventoryCell.classList.add('updated');
+            setTimeout(() => {
+                inventoryCell.classList.remove('updated');
+            }, 1000);
+        }
+    }
+
+    // Report form validation
+    const reportForm = document.querySelector('[name="inventory_report"]').closest('form');
+    if (reportForm) {
+        reportForm.addEventListener('submit', event => {
+            const productSelect = reportForm.querySelector('[name="water_product"]');
+            const leaksInput = reportForm.querySelector('[name="leaks"]');
+            const returnsInput = reportForm.querySelector('[name="returns"]');
+            const halfCapsInput = reportForm.querySelector('[name="half_caps"]');
+            
+            if (productSelect && leaksInput && returnsInput && halfCapsInput) {
+                const productId = productSelect.value;
+                const total = (parseInt(leaksInput.value) || 0) + 
+                            (parseInt(returnsInput.value) || 0) + 
+                            (parseInt(halfCapsInput.value) || 0);
+                
+                if (total > remainingInventory[productId]) {
+                    event.preventDefault();
+                    alert('Total reported items exceed remaining inventory for this product!');
+                }
+            }
+        });
+    }
+
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', event => {
+        // Alt + M for Monthly Customer form focus
+        if (event.altKey && event.key === 'm') {
+            event.preventDefault();
+            monthlyCustomerSelect?.focus();
+        }
+        // Alt + I for In-hand Customer form focus
+        if (event.altKey && event.key === 'i') {
+            event.preventDefault();
+            document.querySelector('[name="customer_name"]')?.focus();
+        }
+        // Alt + R for Report form focus
+        if (event.altKey && event.key === 'r') {
+            event.preventDefault();
+            document.querySelector('[name="water_product"]')?.focus();
+        }
+    });
+
+    // Confirm before leaving page with unsaved changes
+    let hasUnsavedChanges = false;
+
+    document.querySelectorAll('input, select, textarea').forEach(element => {
+        element.addEventListener('change', () => {
+            hasUnsavedChanges = true;
+        });
+    });
+
+    window.addEventListener('beforeunload', event => {
+        if (hasUnsavedChanges) {
+            event.preventDefault();
+            event.returnValue = '';
+        }
+    });
+
+    // Reset unsaved changes flag after successful submission
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', () => {
+            hasUnsavedChanges = false;
+        });
+    });
+});
+</script>
+
+<style>
+.updated {
+    background-color: #ffeeba;
+    transition: background-color 1s;
+}
+
+.form-control.is-invalid {
+    background-image: none;
+}
+
+.delivery-summary td {
+    vertical-align: middle;
+}
+
+@media (max-width: 768px) {
+    .card-body {
+        padding: 0.5rem;
+    }
+    
+    .table-responsive {
+        margin-bottom: 1rem;
+    }
+}
+</style>
+{% endblock %}

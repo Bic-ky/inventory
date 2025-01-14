@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% load static %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Complete Delivery #{{ delivery.id }}</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Delivery Summary -->
+                    <h5 class="card-title">Delivery Summary</h5>
+                    
+                    <!-- Inventory Taken -->
+                    <div class="mb-4">
+                        <h6 class="text-muted">Initial Inventory</h6>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th class="text-right">Quantity Taken</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in delivery.inventory_items.all %}
+                                <tr>
+                                    <td>{{ item.water_product }}</td>
+                                    <td class="text-right">{{ item.quantity }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th>Total Items</th>
+                                    <th class="text-right">{{ delivery.total_water_picked }}</th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- Deliveries Made -->
+                    <div class="mb-4">
+                        <h6 class="text-muted">Deliveries Made</h6>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Product</th>
+                                    <th class="text-right">Quantity</th>
+                                    <th class="text-right">Price</th>
+                                    <th class="text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in delivery.delivery_items.all %}
+                                <tr>
+                                    <td>
+                                        {% if item.monthly_customer %}
+                                            {{ item.monthly_customer }}
+                                        {% else %}
+                                            {{ item.customer_name|default:"Walk-in Customer" }}
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.water_product }}</td>
+                                    <td class="text-right">{{ item.quantity }}</td>
+                                    <td class="text-right">₹{{ item.price_per_unit }}</td>
+                                    <td class="text-right">₹{{ item.total_amount }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th colspan="4">Total Delivered</th>
+                                    <th class="text-right">{{ delivery.delivery_items.count }} items</th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- Inventory Reports -->
+                    <div class="mb-4">
+                        <h6 class="text-muted">Inventory Reports</h6>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th class="text-right">Leaks</th>
+                                    <th class="text-right">Returns</th>
+                                    <th class="text-right">Half Caps</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for report in delivery.reports.all %}
+                                <tr>
+                                    <td>{{ report.water_product }}</td>
+                                    <td class="text-right">{{ report.leaks }}</td>
+                                    <td class="text-right">{{ report.returns }}</td>
+                                    <td class="text-right">{{ report.half_caps }}</td>
+                                    <td>{{ report.notes|default:"-" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Inventory Balance Check -->
+                    <div class="mb-4">
+                        <h6 class="text-muted">Inventory Balance</h6>
+                        <div class="card {% if delivery.is_delivery_complete %}bg-success{% else %}bg-warning{% endif %} text-white">
+                            <div class="card-body">
+                                <p class="mb-0">
+                                    <strong>Total Items Taken:</strong> {{ delivery.total_water_picked }}<br>
+                                    <strong>Total Items Accounted:</strong> {{ delivery.total_water_accounted_for }}
+                                    {% if not delivery.is_delivery_complete %}
+                                        <br><strong>Missing Items:</strong> 
+                                        {{ delivery.total_water_picked|subtract:delivery.total_water_accounted_for }}
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Completion Form -->
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        {% if messages %}
+                        <div class="messages mb-3">
+                            {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }}">
+                                {{ message }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        {% if not delivery.is_delivery_complete %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            All items must be accounted for before completing the delivery.
+                        </div>
+                        {% endif %}
+
+                        <div class="form-check mb-3">
+                            {{ form.confirm_completion }}
+                            <label class="form-check-label" for="{{ form.confirm_completion.id_for_label }}">
+                                I confirm that all deliveries and reports have been recorded correctly
+                            </label>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'record_delivery' delivery.id %}" class="btn btn-secondary">
+                                Back to Recording
+                            </a>
+                            <button type="submit" class="btn btn-success" {% if not delivery.is_delivery_complete %}disabled{% endif %}>
+                                Complete Delivery
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const form = document.querySelector('.needs-validation');
+    form.addEventListener('submit', event => {
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+    });
+
+    // Confirmation checkbox handling
+    const confirmCheckbox = document.querySelector('input[name="confirm_completion"]');
+    const submitButton = document.querySelector('button[type="submit"]');
+    
+    if (confirmCheckbox && submitButton) {
+        confirmCheckbox.addEventListener('change', () => {
+            if ("{{ delivery.is_delivery_complete }}" === "True") {
+                submitButton.disabled = !confirmCheckbox.checked;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
