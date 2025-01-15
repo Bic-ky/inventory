@@ -25,35 +25,35 @@
                         <h5 class="mb-0">Initial Inventory</h5>
                     </div>
                     <div class="card-body">
-                        {{ inventory_formset.management_form }}
-                        <div class="row">
-                            <div class="col-md-6"><strong>Product</strong></div>
-                            <div class="col-md-6"><strong>Quantity</strong></div>
-                        </div>
                         <div class="inventory-forms">
-                            {% for form in inventory_formset %}
+                            {% for product in active_products %}
                             <div class="row mb-3">
-                                <div class="col-md-6">
-                                    {{ form.water_product }}
-                                    {% if form.water_product.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ form.water_product.errors }}
-                                    </div>
-                                    {% endif %}
+                                <div class="col-md-2">
+                                    <input
+                                        type="hidden"
+                                        name="inventory-{{ forloop.counter0 }}-water_product"
+                                        value="{{ product.id }}"
+                                    />
+                                    <p class="form-control-plaintext">{{ product.quality }} {{ product.water_type }}</p>
                                 </div>
-                                <div class="col-md-6">
-                                    {{ form.quantity }}
-                                    {% if form.quantity.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ form.quantity.errors }}
-                                    </div>
-                                    {% endif %}
+                                <div class="col-md-10">
+                                    <input
+                                        type="number"
+                                        name="inventory-{{ forloop.counter0 }}-quantity"
+                                        class="form-control"
+                                        min="0"
+                                        value="0"
+                                    />
                                 </div>
                             </div>
                             {% endfor %}
                         </div>
                     </div>
                 </div>
+                <input type="hidden" name="inventory-TOTAL_FORMS" value="{{ active_products|length }}">
+                <input type="hidden" name="inventory-INITIAL_FORMS" value="0">
+                <input type="hidden" name="inventory-MIN_NUM_FORMS" value="0">
+                <input type="hidden" name="inventory-MAX_NUM_FORMS" value="{{ active_products|length }}">
 
                 <div class="card mb-4">
                     <div class="card-header">
@@ -69,9 +69,8 @@
                     </div>
                 </div>
 
-                <div class="form-group text-center">
+                <div class="form-group">
                     <button type="submit" class="btn btn-primary btn-lg">Start Delivery</button>
-                    <a href="" class="btn btn-secondary btn-lg ml-2">Cancel</a>
                 </div>
             </form>
         </div>
@@ -82,26 +81,63 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Form validation
-    const forms = document.querySelectorAll('.needs-validation');
-    Array.from(forms).forEach(form => {
-        form.addEventListener('submit', event => {
-            if (!form.checkValidity()) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-            form.classList.add('was-validated');
-        }, false);
-    });
+    document.addEventListener("DOMContentLoaded", function () {
+        const form = document.querySelector("form");
+        const quantityInputs = document.querySelectorAll("input[type='number']");
+        const submitButton = document.querySelector("button[type='submit']");
 
-    // Initialize any empty forms with zero quantity
-    const quantityInputs = document.querySelectorAll('input[type="number"]');
-    quantityInputs.forEach(input => {
-        if (!input.value) {
-            input.value = 0;
-        }
+        form.addEventListener("submit", function (event) {
+            let totalQuantity = 0;
+
+            // Calculate total quantity
+            quantityInputs.forEach(input => {
+                totalQuantity += parseInt(input.value || "0", 10);
+            });
+
+            // If total quantity is zero, prevent submission and show error
+            if (totalQuantity === 0) {
+                event.preventDefault();
+                alert("Total quantity cannot be zero.");
+            }
+        });
+
+        // Optional: Disable submit button if total is zero
+        quantityInputs.forEach(input => {
+            input.addEventListener("input", function () {
+                let totalQuantity = 0;
+
+                quantityInputs.forEach(input => {
+                    totalQuantity += parseInt(input.value || "0", 10);
+                });
+
+                if (totalQuantity === 0) {
+                    submitButton.disabled = true;
+                } else {
+                    submitButton.disabled = false;
+                }
+            });
+        });
     });
-});
+    document.addEventListener('DOMContentLoaded', function() {
+        // Form validation
+        const forms = document.querySelectorAll('.needs-validation');
+        Array.from(forms).forEach(form => {
+            form.addEventListener('submit', event => {
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+
+        // Initialize any empty forms with zero quantity
+        const quantityInputs = document.querySelectorAll('input[type="number"]');
+        quantityInputs.forEach(input => {
+            if (!input.value) {
+                input.value = 0;
+            }
+        });
+    });
 </script>
 {% endblock %}

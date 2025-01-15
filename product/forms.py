@@ -85,12 +85,28 @@ class InHandDeliveryForm(forms.ModelForm):
         widgets = {
             "customer_name": forms.TextInput(attrs={"class": "form-control"}),
             "customer_phone": forms.TextInput(attrs={"class": "form-control"}),
-            "water_product": forms.Select(attrs={"class": "form-control"}),
-            "quantity": forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
+            "water_product": forms.Select(
+                attrs={"class": "form-control", "required": "required"}
+            ),
+            "quantity": forms.NumberInput(
+                attrs={"class": "form-control", "min": "0", "required": "required"}
+            ),
             "price_per_unit": forms.NumberInput(
-                attrs={"class": "form-control", "min": "0", "step": "0.01"}
+                attrs={
+                    "class": "form-control",
+                    "min": "0",
+                    "step": "0.01",
+                    "required": "required",
+                }
             ),
         }
+
+    # Custom validation for quantity
+    def clean_quantity(self):
+        quantity = self.cleaned_data.get("quantity")
+        if quantity is None or quantity <= 0:
+            raise forms.ValidationError("Please enter a quantity greater than 0.")
+        return quantity
 
 
 class InventoryReportForm(forms.ModelForm):
@@ -104,13 +120,6 @@ class InventoryReportForm(forms.ModelForm):
             "half_caps": forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
             "notes": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
         }
-
-
-class DeliveryCompleteForm(forms.Form):
-    confirm_completion = forms.BooleanField(
-        required=True,
-        label="I confirm all deliveries and reports have been recorded correctly",
-    )
 
 
 class MonthlyExpenseForm(forms.ModelForm):

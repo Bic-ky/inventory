@@ -6,6 +6,11 @@ from . import views
 
 urlpatterns = [
     path("delivery/", views.delivery, name="delivery"),
+    path(
+        "delivery-details/<int:delivery_id>/",
+        views.delivery_details,
+        name="delivery_details",
+    ),
     path("add-delivery/", views.add_delivery, name="add_delivery"),
     path("all-deliveries/", views.all_deliveries, name="all_deliveries"),
     path("bills/<int:delivery_id>/", views.bill_detail, name="bill_detail"),

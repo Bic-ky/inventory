@@ -3,6 +3,16 @@
 
 {% block content %}
 <div class="container-fluid mt-4">
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
     <div class="row">
         <!-- Inventory Summary -->
         <div class="col-md-3">
@@ -36,17 +46,32 @@
             <!-- Monthly Customer Delivery Form -->
             <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0">Monthly Customer Delivery</h5>
+                    <h5 class="mb-0">Monthly Customer Delivery Details</h5>
                 </div>
                 <div class="card-body">
                     <form method="post" class="needs-validation" novalidate>
                         {% csrf_token %}
-                        <div class="row">
-                            <div class="col-md-4">{{ monthly_form.monthly_customer }}</div>
-                            <div class="col-md-4">{{ monthly_form.water_product }}</div>
-                            <div class="col-md-3">{{ monthly_form.quantity }}</div>
-                            <div class="col-md-1">
-                                <button type="submit" name="monthly_delivery" class="btn btn-primary">Add</button>
+                        <div class="row align-items-end">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label for="monthly_customer">Monthly Customer Name</label>
+                                    {{ monthly_form.monthly_customer }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-md-6 form-group">
+                                <label for="water_product">Product Type</label>
+                                {{ monthly_form.water_product }}
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label for="quantity">Quantity</label>
+                                {{ monthly_form.quantity }}
+                            </div>
+                        </div>
+                        <div class="row align-items-end">
+                            <div class="col-md-12 form-group">
+                                <button type="submit" name="monthly_delivery" class="btn btn-primary w-100">Add</button>
                             </div>
                         </div>
                     </form>
@@ -56,21 +81,40 @@
             <!-- In-Hand Customer Delivery Form -->
             <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0">In-Hand Customer Delivery</h5>
+                    <h5 class="mb-0">In-Hand Customer Delivery Details</h5>
                 </div>
                 <div class="card-body">
                     <form method="post" class="needs-validation" novalidate>
                         {% csrf_token %}
+                        <!--
                         <div class="row mb-3">
                             <div class="col-md-4">{{ inhand_form.customer_name }}</div>
                             <div class="col-md-4">{{ inhand_form.customer_phone }}</div>
                         </div>
-                        <div class="row">
-                            <div class="col-md-3">{{ inhand_form.water_product }}</div>
-                            <div class="col-md-3">{{ inhand_form.quantity }}</div>
-                            <div class="col-md-3">{{ inhand_form.price_per_unit }}</div>
-                            <div class="col-md-3">
-                                <button type="submit" name="inhand_delivery" class="btn btn-primary">Add</button>
+                        -->
+                        <div class="row align-items-end">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="water_product">Product Type</label>
+                                    {{ inhand_form.water_product }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="quantity">Quantity</label>
+                                    {{ inhand_form.quantity }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row align-items-end">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="price_per_unit">Price per Unit</label>
+                                    {{ inhand_form.price_per_unit }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <button type="submit" name="inhand_delivery" class="btn btn-primary w-100 form-group">Add</button>
                             </div>
                         </div>
                     </form>
@@ -86,17 +130,32 @@
                     <form method="post" class="needs-validation" novalidate>
                         {% csrf_token %}
                         <div class="row mb-3">
-                            <div class="col-md-3">{{ report_form.water_product }}</div>
-                            <div class="col-md-2">{{ report_form.leaks }}</div>
-                            <div class="col-md-2">{{ report_form.returns }}</div>
-                            <div class="col-md-2">{{ report_form.half_caps }}</div>
+                            <div class="col-md-6 form-group">
+                                <label for="water_product">Product Type</label>
+                                {{ report_form.water_product }}
+                            </div>
+                            <div class="col-md-2 form-group">
+                                <label for="leaks">Leaks</label>
+                                {{ report_form.leaks }}
+                            </div>
+                            <div class="col-md-2 form-group">
+                                <label for="returns">Returns</label>
+                                {{ report_form.returns }}
+                            </div>
+                            <div class="col-md-2 form-group">
+                                <label for="half_caps">Half Caps</label>
+                                {{ report_form.half_caps }}
+                            </div>
                         </div>
                         <div class="row">
-                            <div class="col-12">{{ report_form.notes }}</div>
+                            <div class="col-12 form-group">
+                                <label for="notes">Notes</label>
+                                {{ report_form.notes }}
+                            </div>
                         </div>
                         <div class="row mt-3">
                             <div class="col-12">
-                                <button type="submit" name="inventory_report" class="btn btn-primary">Add Report</button>
+                                <button type="submit" name="inventory_report" class="btn btn-primary w-100">Add Report</button>
                             </div>
                         </div>
                     </form>
@@ -246,6 +305,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const remainingInventory = JSON.parse(document.getElementById('remaining-inventory-data').textContent);
 
     addDeliveryButtons.forEach(button => {
+        alert('button');
         button.closest('form').addEventListener('submit', event => {
             const productSelect = event.target.querySelector('[name="water_product"]');
             const quantityInput = event.target.querySelector('[name="quantity"]');

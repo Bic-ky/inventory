@@ -1,5 +1,184 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="container mt-4">
+    <h1>Delivery List</h1>
+    <!-- Delivery Summary Table -->
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Driver</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for delivery in deliveries %}
+            <tr>
+                <td>{{ delivery.id }}</td>
+                <td>{{ delivery.driver.full_name }}</td>
+                <td>{{ delivery.delivery_date }}</td>
+                <td>{{ delivery.status }}</td>
+                <td>
+                    <button
+                        class="btn btn-primary btn-sm"
+                        onclick="fetchDeliveryDetails({{ delivery.id }})"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deliveryDetailsModal"
+                    >
+                        Details
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 
+    <!-- Modal for Delivery Details -->
+    <div class="modal fade" id="deliveryDetailsModal" tabindex="-1" aria-labelledby="deliveryDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deliveryDetailsModalLabel">Delivery Details</h5>
+                    <button class="btn btn-danger" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">X</button>
+                </div>
+                <div class="modal-body" id="deliveryDetailsContent">
+                    <!-- Delivery details will be loaded here dynamically -->
+                    <p>Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function fetchDeliveryDetails(deliveryId) {
+        const url = `/product/delivery-details/${deliveryId}/`; // API endpoint to fetch details
+        const modalContent = document.getElementById("deliveryDetailsContent");
+
+        // Clear previous content and show loading state
+        modalContent.innerHTML = "<p>Loading...</p>";
+
+        fetch(url)
+            .then((response) => response.json())
+            .then((data) => {
+                // Construct the detailed HTML dynamically
+                let html = `
+                    <h3>Delivery Overview</h3>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Driver</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>${data.driver}</td>
+                                <td>${data.date}</td>
+                                <td>${data.status}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    
+                    <h4>Inventory Taken</h4>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Water Product</th>
+                                <th>Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                
+                if (data.inventory_items && data.inventory_items.length > 0) {
+                    data.inventory_items.forEach((item) => {
+                        html += `
+                            <tr>
+                                <td>${item.water_product}</td>
+                                <td>${item.quantity}</td>
+                            </tr>`;
+                    });
+                } else {
+                    html += `<tr><td colspan="2">No inventory taken</td></tr>`;
+                }
+
+                html += `
+                        </tbody>
+                    </table>
+                    
+                    <h4>Delivered Items</h4>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Water Product</th>
+                                <th>Customer</th>
+                                <th>Quantity</th>
+                                <th>Price Per Unit</th>
+                                <th>Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                
+                if (data.delivery_items && data.delivery_items.length > 0) {
+                    data.delivery_items.forEach((item) => {
+                        html += `
+                            <tr>
+                                <td>${item.water_product}</td>
+                                <td>${item.customer_name || "N/A"}</td>
+                                <td>${item.quantity}</td>
+                                <td>${item.price_per_unit}</td>
+                                <td>${item.total_amount}</td>
+                            </tr>`;
+                    });
+                } else {
+                    html += `<tr><td colspan="5">No deliveries made</td></tr>`;
+                }
+
+                html += `
+                        </tbody>
+                    </table>
+                    
+                    <h4>Inventory Reports</h4>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Water Product</th>
+                                <th>Leaks</th>
+                                <th>Returns</th>
+                                <th>Half Caps</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                
+                if (data.inventory_reports && data.inventory_reports.length > 0) {
+                    data.inventory_reports.forEach((report) => {
+                        html += `
+                            <tr>
+                                <td>${report.water_product}</td>
+                                <td>${report.leaks}</td>
+                                <td>${report.returns}</td>
+                                <td>${report.half_caps}</td>
+                            </tr>`;
+                    });
+                } else {
+                    html += `<tr><td colspan="4">No inventory reports</td></tr>`;
+                }
+
+                html += `
+                        </tbody>
+                    </table>`;
+                
+                modalContent.innerHTML = html;
+            })
+            .catch((error) => {
+                console.error("Error fetching details:", error);
+                modalContent.innerHTML = `<p>Error loading details. Please try again later.</p>`;
+            });
+    }
+</script>
 {% endblock content %}

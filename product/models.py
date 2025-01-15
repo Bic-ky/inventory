@@ -86,6 +86,9 @@ class Delivery(models.Model):
         )
         return total_taken == (total_delivered + total_reported)
 
+    def total_water_taken(self):
+        return sum(item.quantity for item in self.inventory_items.all())
+
     def total_water_accounted_for(self):
         total_delivered = sum(item.quantity for item in self.delivery_items.all())
         total_reported = sum(

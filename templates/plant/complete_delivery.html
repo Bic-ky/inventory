@@ -35,7 +35,7 @@
                             <tfoot>
                                 <tr>
                                     <th>Total Items</th>
-                                    <th class="text-right">{{ delivery.total_water_picked }}</th>
+                                    <th class="text-right">{{ delivery.total_water_taken }}</th>
                                 </tr>
                             </tfoot>
                         </table>
@@ -45,39 +45,41 @@
                     <div class="mb-4">
                         <h6 class="text-muted">Deliveries Made</h6>
                         <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Customer</th>
-                                    <th>Product</th>
-                                    <th class="text-right">Quantity</th>
-                                    <th class="text-right">Price</th>
-                                    <th class="text-right">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in delivery.delivery_items.all %}
-                                <tr>
-                                    <td>
-                                        {% if item.monthly_customer %}
-                                            {{ item.monthly_customer }}
-                                        {% else %}
-                                            {{ item.customer_name|default:"Walk-in Customer" }}
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ item.water_product }}</td>
-                                    <td class="text-right">{{ item.quantity }}</td>
-                                    <td class="text-right">₹{{ item.price_per_unit }}</td>
-                                    <td class="text-right">₹{{ item.total_amount }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                            <tfoot>
-                                <tr>
-                                    <th colspan="4">Total Delivered</th>
-                                    <th class="text-right">{{ delivery.delivery_items.count }} items</th>
-                                </tr>
-                            </tfoot>
-                        </table>
+                        <thead>
+                            <tr>
+                                <th>Customer</th>
+                                <th>Product</th>
+                                <th class="text-right">Quantity</th>
+                                <th class="text-right">Price</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in delivery.delivery_items.all %}
+                            <tr>
+                                <td>
+                                    {% if item.monthly_customer %}
+                                        {{ item.monthly_customer }}
+                                    {% else %}
+                                        {{ item.customer_name|default:"Walk-in Customer" }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.water_product }}</td>
+                                <td class="text-right">{{ item.quantity }}</td>
+                                <td class="text-right">₹{{ item.price_per_unit }}</td>
+                                <td class="text-right">₹{{ item.total_amount }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="2" class="text-right"><strong>Total</strong></td>
+                                <td class="text-right"><strong>{{ total_quantity }}</strong></td>
+                                <td class="text-right"></td>
+                                <td class="text-right"><strong>₹{{ total_amount }}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
                     </div>
 
                     <!-- Inventory Reports -->
@@ -90,7 +92,7 @@
                                     <th class="text-right">Leaks</th>
                                     <th class="text-right">Returns</th>
                                     <th class="text-right">Half Caps</th>
-                                    <th>Notes</th>
+                                    <th class="text-right">Notes</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -100,10 +102,19 @@
                                     <td class="text-right">{{ report.leaks }}</td>
                                     <td class="text-right">{{ report.returns }}</td>
                                     <td class="text-right">{{ report.half_caps }}</td>
-                                    <td>{{ report.notes|default:"-" }}</td>
+                                    <td class="text-right">{{ report.notes|default:"--" }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td class="text-right"><strong>Total</strong></td>
+                                    <td class="text-right"><strong>{{ total_leaks }}</strong></td>
+                                    <td class="text-right"><strong>{{ total_returns }}</strong></td>
+                                    <td class="text-right"><strong>{{ total_half_caps }}</strong></td>
+                                    <td class="text-right"></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
 
@@ -113,11 +124,11 @@
                         <div class="card {% if delivery.is_delivery_complete %}bg-success{% else %}bg-warning{% endif %} text-white">
                             <div class="card-body">
                                 <p class="mb-0">
-                                    <strong>Total Items Taken:</strong> {{ delivery.total_water_picked }}<br>
+                                    <strong>Total Items Taken:</strong> {{ delivery.total_water_taken }}<br>
                                     <strong>Total Items Accounted:</strong> {{ delivery.total_water_accounted_for }}
                                     {% if not delivery.is_delivery_complete %}
                                         <br><strong>Missing Items:</strong> 
-                                        {{ delivery.total_water_picked|subtract:delivery.total_water_accounted_for }}
+                                        {{ delivery.total_water_taken|subtract:delivery.total_water_accounted_for }}
                                     {% endif %}
                                 </p>
                             </div>
@@ -146,8 +157,8 @@
                         {% endif %}
 
                         <div class="form-check mb-3">
-                            {{ form.confirm_completion }}
-                            <label class="form-check-label" for="{{ form.confirm_completion.id_for_label }}">
+                            <input type="checkbox" class="form-check-input" id="confirm" required>
+                            <label class="form-check-label">
                                 I confirm that all deliveries and reports have been recorded correctly
                             </label>
                         </div>
@@ -156,7 +167,7 @@
                             <a href="{% url 'record_delivery' delivery.id %}" class="btn btn-secondary">
                                 Back to Recording
                             </a>
-                            <button type="submit" class="btn btn-success" {% if not delivery.is_delivery_complete %}disabled{% endif %}>
+                            <button type="submit" class="btn btn-success">
                                 Complete Delivery
                             </button>
                         </div>
@@ -169,29 +180,4 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Form validation
-    const form = document.querySelector('.needs-validation');
-    form.addEventListener('submit', event => {
-        if (!form.checkValidity()) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-        form.classList.add('was-validated');
-    });
-
-    // Confirmation checkbox handling
-    const confirmCheckbox = document.querySelector('input[name="confirm_completion"]');
-    const submitButton = document.querySelector('button[type="submit"]');
-    
-    if (confirmCheckbox && submitButton) {
-        confirmCheckbox.addEventListener('change', () => {
-            if ("{{ delivery.is_delivery_complete }}" === "True") {
-                submitButton.disabled = !confirmCheckbox.checked;
-            }
-        });
-    }
-});
-</script>
 {% endblock %}

@@ -195,7 +195,6 @@ class InventoryReportAdmin(admin.ModelAdmin):
         "leaks",
         "returns",
         "half_caps",
-        "notes",
     )
     list_filter = (
         "delivery__delivery_date",

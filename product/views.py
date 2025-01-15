@@ -2,9 +2,8 @@ from decimal import Decimal
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.core.serializers.json import DjangoJSONEncoder
 from django.http import JsonResponse
-from django.db.models import Sum, Count, F, DecimalField
+from django.db.models import Sum, F, DecimalField
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 
@@ -15,7 +14,6 @@ from django.db.models import Prefetch
 
 from django.db import transaction
 
-import json
 
 from product import models
 
@@ -31,7 +29,6 @@ from .forms import (
     MonthlyCustomerDeliveryForm,
     InHandDeliveryForm,
     InventoryReportForm,
-    DeliveryCompleteForm,
     DeliveryItem,
 )
 
@@ -51,16 +48,80 @@ from product.models import (
 
 
 def delivery(request):
-    return render(request, "plant/delivery.html")
+    deliveries = Delivery.objects.all()
+    context = {"deliveries": deliveries}
+    return render(request, "plant/delivery.html", context)
+
+
+def delivery_details(request, delivery_id):
+    delivery = get_object_or_404(Delivery, id=delivery_id)
+
+    # Prepare the data for JSON response
+    data = {
+        "id": delivery.id,
+        "driver": delivery.driver.full_name,
+        "date": delivery.delivery_date,
+        "status": delivery.status,
+        "inventory_items": [
+            {
+                "water_product": item.water_product.__str__(),
+                "quantity": item.quantity,
+            }
+            for item in delivery.inventory_items.all()
+        ],
+        "delivery_items": [
+            {
+                "water_product": item.water_product.__str__(),
+                "customer_name": (
+                    item.monthly_customer.name
+                    if item.monthly_customer
+                    else item.customer_name
+                ),
+                "quantity": item.quantity,
+                "price_per_unit": item.price_per_unit,
+                "total_amount": item.total_amount,
+            }
+            for item in delivery.delivery_items.all()
+        ],
+        "inventory_reports": [
+            {
+                "water_product": report.water_product.__str__(),
+                "leaks": report.leaks,
+                "returns": report.returns,
+                "half_caps": report.half_caps,
+            }
+            for report in delivery.reports.all()
+        ],
+    }
+    return JsonResponse(data)
 
 
 @login_required
 def add_delivery(request):
+    active_products = WaterProduct.objects.filter(is_active=True)
+
     if request.method == "POST":
         delivery_form = DeliveryForm(request.POST)
         inventory_formset = DeliveryInventoryFormSet(request.POST, prefix="inventory")
 
         if delivery_form.is_valid() and inventory_formset.is_valid():
+            # check if total quantity is zero
+            total_quantity = sum(
+                int(form.cleaned_data["quantity"])
+                for form in inventory_formset
+                if form.cleaned_data.get("quantity", 0) > 0
+            )
+            if total_quantity == 0:
+                messages.error(request, "Please add at least one item to the delivery.")
+                return render(
+                    request,
+                    "plant/add_delivery.html",
+                    {
+                        "delivery_form": delivery_form,
+                        "inventory_formset": inventory_formset,
+                        "active_products": active_products,
+                    },
+                )
             try:
                 with transaction.atomic():
                     # Save delivery
@@ -76,7 +137,6 @@ def add_delivery(request):
                             item.save()
 
                     messages.success(request, "Delivery created successfully!")
-                    # Use reverse() to generate the correct URL
                     return redirect(
                         reverse(
                             "record_delivery",
@@ -97,6 +157,7 @@ def add_delivery(request):
         {
             "delivery_form": delivery_form,
             "inventory_formset": inventory_formset,
+            "active_products": active_products,  # Pass active products to the template
         },
     )
 
@@ -107,55 +168,10 @@ def record_delivery(request, delivery_id):
         Delivery, id=delivery_id, driver=request.user, status="ONGOING"
     )
 
-    if request.method == "POST":
-        if "monthly_delivery" in request.POST:
-            form = MonthlyCustomerDeliveryForm(request.POST)
-            if form.is_valid():
-                delivery_item = form.save(commit=False)
-                delivery_item.delivery = delivery
-
-                # Get customer-specific price
-                customer_price = CustomerPrice.objects.filter(
-                    monthly_customer=form.cleaned_data["monthly_customer"],
-                    water_product=form.cleaned_data["water_product"],
-                    is_active=True,
-                ).first()
-
-                if customer_price:
-                    delivery_item.price_per_unit = customer_price.price
-                    delivery_item.save()
-                    messages.success(
-                        request, "Monthly customer delivery recorded successfully!"
-                    )
-                else:
-                    messages.error(
-                        request, "No price found for this customer and product!"
-                    )
-
-                return redirect("record_delivery", delivery_id=delivery_id)
-
-        elif "inhand_delivery" in request.POST:
-            form = InHandDeliveryForm(request.POST)
-            if form.is_valid():
-                delivery_item = form.save(commit=False)
-                delivery_item.delivery = delivery
-                delivery_item.save()
-                messages.success(request, "In-hand delivery recorded successfully!")
-                return redirect("record_delivery", delivery_id=delivery_id)
-
-        elif "inventory_report" in request.POST:
-            form = InventoryReportForm(request.POST)
-            if form.is_valid():
-                report = form.save(commit=False)
-                report.delivery = delivery
-                report.save()
-                messages.success(request, "Inventory report recorded successfully!")
-                return redirect("record_delivery", delivery_id=delivery_id)
-
-    else:
-        monthly_form = MonthlyCustomerDeliveryForm()
-        inhand_form = InHandDeliveryForm()
-        report_form = InventoryReportForm()
+    # Initialize the forms to ensure they're available in all cases
+    monthly_form = MonthlyCustomerDeliveryForm()
+    inhand_form = InHandDeliveryForm()
+    report_form = InventoryReportForm()
 
     # Calculate remaining inventory
     inventory_taken = {
@@ -195,6 +211,94 @@ def record_delivery(request, delivery_id):
         product = WaterProduct.objects.get(id=product_id)
         remaining_inventory_with_products[product] = quantity
 
+    if request.method == "POST":
+        if "monthly_delivery" in request.POST:
+            form = MonthlyCustomerDeliveryForm(request.POST)
+            if form.is_valid():
+                delivery_item = form.save(commit=False)
+                delivery_item.delivery = delivery
+
+                # Check if enough inventory is available
+                remaining = remaining_inventory.get(delivery_item.water_product.id, 0)
+                if remaining < delivery_item.quantity:
+                    messages.error(
+                        request,
+                        f"Not enough {delivery_item.water_product} available. Remaining: {remaining}",
+                    )
+                    return redirect("record_delivery", delivery_id=delivery_id)
+
+                # Get customer-specific price
+                customer_price = CustomerPrice.objects.filter(
+                    monthly_customer=form.cleaned_data["monthly_customer"],
+                    water_product=form.cleaned_data["water_product"],
+                    is_active=True,
+                ).first()
+
+                if customer_price:
+                    delivery_item.price_per_unit = customer_price.price
+                    delivery_item.save()
+                    messages.success(
+                        request, "Monthly customer delivery recorded successfully!"
+                    )
+                else:
+                    messages.error(
+                        request, "No price found for this customer and product!"
+                    )
+
+                return redirect("record_delivery", delivery_id=delivery_id)
+
+        elif "inhand_delivery" in request.POST:
+            # Make a mutable copy of request.POST
+            mutable_post = request.POST.copy()
+
+            # Set customer name and phone as in-hand delivery defaults
+            mutable_post["customer_name"] = "In-hand"
+            mutable_post["customer_phone"] = "0000000000"
+
+            # Pass the modified data to the form
+            form = InHandDeliveryForm(mutable_post)
+
+            if form.is_valid():
+                delivery_item = form.save(commit=False)
+                delivery_item.delivery = delivery
+
+                # Check if enough inventory is available
+                remaining = remaining_inventory.get(delivery_item.water_product.id, 0)
+                if remaining < delivery_item.quantity:
+                    messages.error(
+                        request,
+                        f"Not enough {delivery_item.water_product} available. Remaining: {remaining}",
+                    )
+                    return redirect("record_delivery", delivery_id=delivery_id)
+                delivery_item.save()
+                messages.success(request, "In-hand delivery recorded successfully!")
+                return redirect("record_delivery", delivery_id=delivery_id)
+            else:
+                # Display validation errors
+                for field, error_list in form.errors.items():
+                    for error in error_list:
+                        messages.error(request, f"{field}: {error}")
+
+        elif "inventory_report" in request.POST:
+            form = InventoryReportForm(request.POST)
+            if form.is_valid():
+                report = form.save(commit=False)
+                report.delivery = delivery
+
+                # Check if enough inventory is available
+                remaining = remaining_inventory.get(report.water_product.id, 0)
+                total_reported = report.leaks + report.returns + report.half_caps
+                if remaining < total_reported:
+                    messages.error(
+                        request,
+                        f"Not enough {report.water_product} available. Remaining: {remaining}",
+                    )
+                    return redirect("record_delivery", delivery_id=delivery_id)
+
+                report.save()
+                messages.success(request, "Inventory report recorded successfully!")
+                return redirect("record_delivery", delivery_id=delivery_id)
+
     context = {
         "delivery": delivery,
         "monthly_form": monthly_form,
@@ -214,25 +318,53 @@ def complete_delivery(request, delivery_id):
         Delivery, id=delivery_id, driver=request.user, status="ONGOING"
     )
 
+    # Calculate total quantity delivered
+    total_quantity = DeliveryItem.objects.filter(delivery_id=delivery_id).aggregate(
+        total_quantity=Sum("quantity")
+    )["total_quantity"]
+    total_quantity_deliver = total_quantity or 0
+
+    # Calculate total amount
+    total_amount = (
+        DeliveryItem.objects.filter(delivery_id=delivery_id)
+        .annotate(total_item_amount=F("quantity") * F("price_per_unit"))
+        .aggregate(total_amount=Sum("total_item_amount"))["total_amount"]
+    )
+    total_amount = total_amount or Decimal(0)
+
+    # Calculate the total for leaks, returns, and half_caps for this delivery
+    totals = InventoryReport.objects.filter(delivery_id=delivery_id).aggregate(
+        total_leaks=Sum("leaks"),
+        total_returns=Sum("returns"),
+        total_half_caps=Sum("half_caps"),
+    )
+    # Accessing the totals
+    total_leaks = totals.get("total_leaks", 0)  # Default to 0 if no records
+    total_returns = totals.get("total_returns", 0)
+    total_half_caps = totals.get("total_half_caps", 0)
+
     if request.method == "POST":
-        form = DeliveryCompleteForm(request.POST)
-        if form.is_valid():
-            if delivery.validate_inventory_balance():
-                delivery.status = "COMPLETED"
-                delivery.end_time = timezone.now()
-                delivery.save()
-                messages.success(request, "Delivery completed successfully!")
-                return redirect("delivery_list")
-            else:
-                messages.error(
-                    request,
-                    "Inventory counts do not match. Please verify all deliveries and reports.",
-                )
+        delivery.status = "COMPLETED"
+        delivery.end_time = timezone.now()
+        delivery.save()
+        return redirect("delivery")
     else:
-        form = DeliveryCompleteForm()
+        messages.error(
+            request,
+            "Inventory counts do not match. Please verify all deliveries and reports.",
+        )
 
     return render(
-        request, "plant/complete_delivery.html", {"delivery": delivery, "form": form}
+        request,
+        "plant/complete_delivery.html",
+        {
+            "delivery": delivery,
+            "total_quantity": total_quantity_deliver,
+            "total_amount": total_amount,
+            "total_leaks": total_leaks,
+            "total_returns": total_returns,
+            "total_half_caps": total_half_caps,
+        },
     )
 
 
