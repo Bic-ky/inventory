@@ -7,15 +7,13 @@ from django.db.models import Sum, F, DecimalField
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 
 from django.utils.timezone import now
 from django.db.models import Prefetch
 
 from django.db import transaction
 
-
-from product import models
 
 from .forms import (
     BillForm,
